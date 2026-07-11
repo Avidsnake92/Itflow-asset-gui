@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Borgo Antico</title>
+  <meta name="description" content="Un city builder medievale rilassante. Fai crescere il tuo borgo, compi miracoli e difendi il regno.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Borgo Antico">
+  <meta name="theme-color" content="#1d2b1f">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Barra risorse in alto -->
+  <div id="topbar" class="safe-top">
+    <div class="res" id="res-legna"><span class="ico">🪵</span><span class="val">0</span></div>
+    <div class="res" id="res-pietra"><span class="ico">🪨</span><span class="val">0</span></div>
+    <div class="res" id="res-cibo"><span class="ico">🍞</span><span class="val">0</span></div>
+    <div class="res" id="res-oro"><span class="ico">💰</span><span class="val">0</span></div>
+    <div class="res" id="res-fede"><span class="ico">✨</span><span class="val">0</span></div>
+    <div class="res" id="res-pop"><span class="ico">👥</span><span class="val">0</span></div>
+    <div class="res" id="res-soldati"><span class="ico">⚔️</span><span class="val">0</span></div>
+  </div>
+
+  <!-- Badge era -->
+  <div id="era-badge" class="safe-top">🏕️ Accampamento</div>
+
+  <!-- Banner avvisi (razzie ecc.) -->
+  <div id="banner" class="hidden"></div>
+
+  <!-- Toast messaggi -->
+  <div id="toast-box"></div>
+
+  <!-- Barra azioni in basso -->
+  <div id="bottombar" class="safe-bottom">
+    <button class="bigbtn" id="btn-build">🔨<small>Costruisci</small></button>
+    <button class="bigbtn" id="btn-miracles">🙏<small>Miracoli</small></button>
+    <button class="bigbtn" id="btn-kingdom">👑<small>Regno</small></button>
+    <button class="bigbtn" id="btn-menu">📜<small>Menu</small></button>
+  </div>
+
+  <!-- Pannello costruzione -->
+  <div id="panel-build" class="panel hidden safe-bottom">
+    <div class="panel-title">Costruisci <button class="close" data-close>✕</button></div>
+    <div id="build-list" class="cards"></div>
+  </div>
+
+  <!-- Pannello miracoli -->
+  <div id="panel-miracles" class="panel hidden safe-bottom">
+    <div class="panel-title">Miracoli Divini <button class="close" data-close>✕</button></div>
+    <div id="miracle-list" class="cards"></div>
+  </div>
+
+  <!-- Pannello regno -->
+  <div id="panel-kingdom" class="panel hidden safe-bottom">
+    <div class="panel-title">Il Regno <button class="close" data-close>✕</button></div>
+    <div id="kingdom-info" class="panel-body"></div>
+  </div>
+
+  <!-- Pannello menu -->
+  <div id="panel-menu" class="panel hidden safe-bottom">
+    <div class="panel-title">Menu <button class="close" data-close>✕</button></div>
+    <div class="panel-body">
+      <p class="muted">Il gioco si salva da solo ogni 10 secondi.</p>
+      <button class="wide-btn" id="btn-save">💾 Salva ora</button>
+      <button class="wide-btn" id="btn-help">❓ Come si gioca</button>
+      <button class="wide-btn danger" id="btn-new">🔥 Nuova partita</button>
+    </div>
+  </div>
+
+  <!-- Pannello selezione (tile / edificio / campo nemico) -->
+  <div id="panel-select" class="panel hidden safe-bottom">
+    <div class="panel-title" id="select-title">Selezione <button class="close" data-close>✕</button></div>
+    <div id="select-body" class="panel-body"></div>
+  </div>
+
+  <!-- Conferma piazzamento -->
+  <div id="place-confirm" class="hidden">
+    <button id="place-ok">✓</button>
+    <button id="place-no">✕</button>
+  </div>
+
+  <!-- Aiuto -->
+  <div id="panel-help" class="panel hidden safe-bottom">
+    <div class="panel-title">Come si gioca <button class="close" data-close>✕</button></div>
+    <div class="panel-body help-text">
+      <p>🏕️ Benvenuto, Signore del Borgo. Qui non c'è fretta: costruisci, osserva, rilassati.</p>
+      <p>🔨 <b>Costruisci</b> case per la popolazione, fattorie per il cibo, taglialegna vicino ai boschi e cave vicino alle rocce.</p>
+      <p>👆 <b>Controlli</b>: trascina per muoverti, pizzica per lo zoom, tocca per selezionare.</p>
+      <p>👑 <b>Evolvi</b> il tuo insediamento: da accampamento a regno, attraverso i secoli del medioevo.</p>
+      <p>✨ Le cappelle generano <b>Fede</b>: usala per compiere <b>miracoli</b> — benedici i raccolti o scaglia fulmini sui nemici.</p>
+      <p>⚔️ Ai confini vivono <b>accampamenti nemici</b>: ogni tanto tenteranno una razzia. Costruisci torri e recluta soldati, oppure attaccali e saccheggiali. Niente panico: non puoi mai perdere del tutto.</p>
+      <p>🌙 Il giorno e la notte scorrono. Goditi il tramonto sul tuo borgo.</p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
