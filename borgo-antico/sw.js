@@ -1,11 +1,12 @@
 // Borgo Antico — service worker: cache per giocare offline
-const CACHE = 'borgo-antico-v1';
+const CACHE = 'borgo-antico-v2';
 const FILES = [
   './',
   'index.html',
   'css/style.css',
   'js/config.js',
   'js/world.js',
+  'js/sprites.js',
   'js/game.js',
   'js/render.js',
   'js/input.js',

@@ -92,7 +92,7 @@ const UI = {
       const costTxt = Object.entries(def.cost)
         .map(([k, v]) => Game.resEmoji(k) + v).join(' ') || '—';
       card.innerHTML =
-        `<div class="emoji">${def.emoji}</div>` +
+        `<div class="emoji"><img class="spr" src="${Sprites.iconURL(id)}" alt="${def.name}"></div>` +
         `<div class="name">${def.name}</div>` +
         `<div class="cost">${locked ? '🔒 ' + ERAS[def.era].name : costTxt}</div>` +
         `<div class="desc">${def.desc}</div>`;

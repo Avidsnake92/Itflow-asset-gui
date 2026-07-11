@@ -6,6 +6,7 @@ Un city builder medievale **rilassante** per iPhone, ispirato a *Civitas Nordica
 
 ## ✨ Caratteristiche
 
+- 🎨 **Pixel art procedurale**: terreni con dithering, edifici isometrici disegnati pixel per pixel (intonaco e travi a vista, tetti di paglia e ardesia), alberi, massi e tende nemiche — nessuna immagine esterna, tutto generato dal codice
 - 🗺️ **Mappa isometrica procedurale** con boschi, laghi, rocce e terre fertili (ogni partita è diversa)
 - 🔨 **16 edifici**: case, fattorie, taglialegna, cave, mulini, mercati, taverne, chiese, torri, caserme, castello, cattedrale...
 - 👑 **Evoluzione della civiltà** in 5 ere, tutte medievali: Accampamento → Villaggio → Borgo → Città Medievale → Regno
@@ -61,6 +62,7 @@ borgo-antico/
 ├── css/style.css         # stile (dark, touch-friendly, safe-area iOS)
 ├── js/config.js          # dati: edifici, ere, miracoli, nemici
 ├── js/world.js           # generazione procedurale della mappa
+├── js/sprites.js         # sprite pixel art generati proceduralmente
 ├── js/game.js            # stato, economia, combattimento, salvataggio
 ├── js/render.js          # rendering isometrico su canvas
 ├── js/input.js           # touch: pan, pinch, tap

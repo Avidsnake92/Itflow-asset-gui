@@ -85,6 +85,7 @@ const Renderer = {
     if (!s) return;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
+    ctx.imageSmoothingEnabled = false;   // pixel art nitida
 
     const night = this.nightness();
 
@@ -101,7 +102,7 @@ const Renderer = {
 
     // velo notturno
     if (night > 0.05) {
-      ctx.fillStyle = `rgba(10, 16, 46, ${night * 0.32})`;
+      ctx.fillStyle = `rgba(10, 14, 40, ${night * 0.48})`;
       ctx.fillRect(0, 0, this.w, this.h);
     }
     ctx.restore();
@@ -167,9 +168,7 @@ const Renderer = {
           this.diamond(ctx, p.x, p.y, W2, H2);
           ctx.fillStyle = this.ghost.ok ? 'rgba(110, 230, 120, 0.45)' : 'rgba(230, 90, 70, 0.5)';
           ctx.fill();
-          ctx.globalAlpha = 0.65;
-          this.emoji(ctx, BUILDINGS[this.ghost.type].emoji, p.x, p.y - H2 * 0.9, 26 * z);
-          ctx.globalAlpha = 1;
+          this.sprite(ctx, Sprites.building(this.ghost.type, false), p.x, p.y + H2 * 0.7, 2 * z, 0.65);
         }
       }
     }
@@ -184,102 +183,46 @@ const Renderer = {
     ctx.closePath();
   },
 
+  // disegna uno sprite pixel art ancorato al suo punto base
+  sprite(ctx, spr, x, y, scale, alpha) {
+    if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.drawImage(spr,
+      Math.round(x - spr._ax * scale), Math.round(y - spr._ay * scale),
+      Math.round(spr.width * scale), Math.round(spr.height * scale));
+    if (alpha != null) ctx.globalAlpha = 1;
+  },
+
   drawTile(ctx, cx, cy, W2, H2, cell, night) {
-    const v = cell.deco; // variazione 0..1
-    let fill;
-    switch (cell.t) {
-      case T.GRASS: fill = `hsl(${96 + v * 12}, 38%, ${34 + v * 6}%)`; break;
-      case T.FERTILE: fill = `hsl(${78 + v * 8}, 46%, ${38 + v * 5}%)`; break;
-      case T.FOREST: fill = `hsl(${112 + v * 10}, 40%, ${26 + v * 5}%)`; break;
-      case T.ROCK: fill = `hsl(${30 + v * 20}, 8%, ${42 + v * 8}%)`; break;
-      case T.WATER: {
-        const wave = Math.sin(this.time * 1.6 + v * 9) * 4;
-        fill = `hsl(205, 52%, ${30 + wave}%)`;
-        break;
-      }
-    }
-    this.diamond(ctx, cx, cy, W2, H2);
-    ctx.fillStyle = fill;
-    ctx.fill();
-    // bordo leggero
-    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    const v = cell.deco;
+    const variant = (v * 3) | 0;
+    const frame = cell.t === T.WATER ? (((this.time * 2.2) | 0) + ((v * 3) | 0)) % 3 : 0;
+    const ground = Sprites.terrain(cell.t, variant, frame);
+    // +1 px per evitare cuciture tra i rombi
+    ctx.drawImage(ground,
+      Math.round(cx - W2) - 1, Math.round(cy - H2),
+      Math.round(W2 * 2) + 2, Math.round(H2 * 2) + 1);
 
     const z = this.cam.zoom;
     if (cell.t === T.FOREST) {
-      // alberelli
-      const n = 1 + ((v * 3) | 0);
+      const n = 2 + ((v * 2) | 0);
       for (let i = 0; i < n; i++) {
-        const ox = ((v * 137 + i * 61) % 40 - 20) * 0.55 * z;
-        const oy = ((v * 89 + i * 43) % 16 - 8) * 0.55 * z;
-        this.tree(ctx, cx + ox, cy + oy, (14 + (v * 8)) * z, night);
+        const ox = ((v * 137 + i * 67) % 44 - 22) * 0.8 * z;
+        const oy = ((v * 89 + i * 47) % 22 - 8) * 0.8 * z;
+        this.sprite(ctx, Sprites.tree((((v * 7) | 0) + i) % 2), cx + ox, cy + oy + H2 * 0.4, (1.5 + v * 0.6) * z);
       }
     } else if (cell.t === T.ROCK) {
-      ctx.fillStyle = `hsl(30, 6%, ${52 + v * 10}%)`;
-      ctx.beginPath();
-      ctx.ellipse(cx - 6 * z, cy, 9 * z, 5.5 * z, 0, 0, Math.PI * 2);
-      ctx.ellipse(cx + 7 * z, cy + 2 * z, 6 * z, 4 * z, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (cell.t === T.FERTILE && !cell.b) {
-      // solchi del campo
-      ctx.strokeStyle = 'rgba(70, 50, 20, 0.25)';
-      ctx.lineWidth = 1.5 * z;
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath();
-        ctx.moveTo(cx - W2 * 0.5, cy + i * H2 * 0.34);
-        ctx.lineTo(cx + W2 * 0.5, cy + i * H2 * 0.34);
-        ctx.stroke();
-      }
+      this.sprite(ctx, Sprites.boulder(), cx, cy + H2 * 0.5, (1.5 + v * 0.6) * z);
     }
-  },
-
-  tree(ctx, x, y, size, night) {
-    ctx.fillStyle = '#5a4126';
-    ctx.fillRect(x - size * 0.08, y - size * 0.3, size * 0.16, size * 0.35);
-    const g = 30 - night * 8;
-    ctx.fillStyle = `hsl(120, 38%, ${g}%)`;
-    ctx.beginPath();
-    ctx.moveTo(x, y - size);
-    ctx.lineTo(x + size * 0.42, y - size * 0.22);
-    ctx.lineTo(x - size * 0.42, y - size * 0.22);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x, y - size * 1.35);
-    ctx.lineTo(x + size * 0.32, y - size * 0.72);
-    ctx.lineTo(x - size * 0.32, y - size * 0.72);
-    ctx.closePath();
-    ctx.fill();
-  },
-
-  emoji(ctx, ch, x, y, size) {
-    ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(ch, x, y);
   },
 
   drawBuilding(ctx, cx, cy, z, type, night) {
-    const def = BUILDINGS[type];
-    const big = type === 'municipio' || type === 'castello' || type === 'cattedrale';
-    const size = (big ? 40 : 28) * z;
-
-    // ombra
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    const spr = Sprites.building(type, night > 0.45);
+    // ombra morbida alla base
+    ctx.fillStyle = 'rgba(20, 14, 6, 0.18)';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 3 * z, size * 0.5, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy + 3 * z, 20 * z, 8 * z, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    this.emoji(ctx, def.emoji, cx, cy - size * 0.38, size);
-
-    // finestre accese di notte
-    if (night > 0.45 && (type === 'casa' || type === 'taverna' || big)) {
-      ctx.fillStyle = `rgba(255, 200, 90, ${(night - 0.45) * 1.2})`;
-      ctx.beginPath();
-      ctx.arc(cx + 5 * z, cy - 6 * z, 2.2 * z, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    this.sprite(ctx, spr, cx, cy + CONFIG.TILE_H / 2 * z * 0.7, 2 * z);
   },
 
   drawCamps(ctx, night) {
@@ -300,13 +243,11 @@ const Renderer = {
         ctx.fill();
       }
 
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + 4 * z, 22 * z, 8 * z, 0, 0, Math.PI * 2);
       ctx.fill();
-      this.emoji(ctx, '⛺', p.x - 8 * z, p.y - 8 * z, 26 * z);
-      this.emoji(ctx, '⛺', p.x + 9 * z, p.y - 4 * z, 20 * z);
-      this.emoji(ctx, '🏴', p.x + 2 * z, p.y - 26 * z, 18 * z);
+      this.sprite(ctx, Sprites.camp(), p.x, p.y + 6 * z, 2 * z);
 
       // etichetta forza
       ctx.font = `${11 * Math.max(0.8, z)}px -apple-system, sans-serif`;
@@ -322,7 +263,9 @@ const Renderer = {
       const t = 1 - Math.max(0, (s.attack.at - s.time) / ENEMY.ATTACK_TRAVEL);
       const a = this.tileToWorld(c, c), b = this.tileToWorld(camp.x, camp.y);
       const p = this.worldToScreen(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
-      this.emoji(ctx, '⚔️', p.x, p.y - 8, 22 * z);
+      const bob = Math.abs(Math.sin(this.time * 8)) * 2 * z;
+      this.sprite(ctx, Sprites.soldier(), p.x - 4 * z, p.y - bob, 2 * z);
+      this.sprite(ctx, Sprites.soldier(), p.x + 6 * z, p.y + 3 * z - bob, 2 * z);
     }
   },
 
@@ -389,20 +332,20 @@ const Renderer = {
       const p = this.worldToScreen(pt.x, pt.y);
       if (pt.kind === 'smoke') {
         const a = Math.min(0.4, pt.ttl / pt.max * 0.5);
-        const r = (3 + (pt.max - pt.ttl) * 3) * this.cam.zoom;
-        ctx.fillStyle = `rgba(220, 220, 210, ${a})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fill();
+        // sbuffo quadrato in stile pixel
+        const r = Math.max(2, Math.round((3 + (pt.max - pt.ttl) * 3) * this.cam.zoom / 2) * 2);
+        ctx.fillStyle = `rgba(226, 222, 210, ${a})`;
+        ctx.fillRect(Math.round(p.x - r / 2), Math.round(p.y - r / 2), r, r);
+        ctx.fillRect(Math.round(p.x - r / 4), Math.round(p.y - r), r / 2, r / 2);
       } else if (pt.kind === 'bird') {
         if (p.x > this.w + 60) { this.particles.splice(i, 1); continue; }
-        ctx.strokeStyle = 'rgba(30, 30, 30, 0.7)';
-        ctx.lineWidth = 1.6;
-        const flap = Math.sin(this.time * 10 + pt.y) * 4;
-        ctx.beginPath();
-        ctx.moveTo(p.x - 5, p.y - flap);
-        ctx.quadraticCurveTo(p.x, p.y + 3, p.x + 5, p.y - flap);
-        ctx.stroke();
+        const flap = Math.sin(this.time * 10 + pt.y) > 0 ? 2 : 0;
+        const u = Math.max(1, Math.round(1.5 * this.cam.zoom));
+        ctx.fillStyle = 'rgba(40, 36, 30, 0.8)';
+        ctx.fillRect(p.x - 2 * u, p.y - flap * u, u, u);
+        ctx.fillRect(p.x - u, p.y - u, u, u);
+        ctx.fillRect(p.x, p.y - u, u, u);
+        ctx.fillRect(p.x + u, p.y - flap * u, u, u);
       }
     }
   },
