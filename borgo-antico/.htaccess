@@ -1,0 +1,15 @@
+# Borgo Antico — configurazione per hosting Apache/cPanel
+
+# MIME type corretto per il manifest PWA
+AddType application/manifest+json .webmanifest
+
+# Il service worker non va mai messo in cache dal browser,
+# così gli aggiornamenti del gioco arrivano subito
+<IfModule mod_headers.c>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </Files>
+  <Files "index.html">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </Files>
+</IfModule>
