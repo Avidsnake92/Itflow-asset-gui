@@ -8,7 +8,12 @@ Un city builder medievale **rilassante** per iPhone, ispirato a *Civitas Nordica
 
 - 🎨 **Pixel art procedurale**: terreni con dithering, edifici isometrici disegnati pixel per pixel (intonaco e travi a vista, tetti di paglia e ardesia), alberi, massi e tende nemiche — nessuna immagine esterna, tutto generato dal codice
 - 🗺️ **Mappa isometrica procedurale** con boschi, laghi, rocce e terre fertili (ogni partita è diversa)
-- 🔨 **16 edifici**: case, fattorie, taglialegna, cave, mulini, mercati, taverne, chiese, torri, caserme, castello, cattedrale...
+- 🔨 **21 edifici**: case, fattorie, taglialegna, cave, mulini, panifici, segherie, botteghe, mercati, taverne, chiese, torri, caserme, castello, cattedrale...
+- ⚒️ **Mestieri con esperienza** (alla Cultures): contadini, boscaioli e cavatori guadagnano XP lavorando; ogni livello dà +15% di produzione alla catena e sblocca nuove lavorazioni:
+  - 🌾 Contadino: grano → **Mulino** (farina) → **Panificio** (pane, nutre ×3)
+  - 🪓 Boscaiolo: legna → **Segheria** (assi) → **Falegname** (mobili per la felicità o archi per i soldati, a tua scelta)
+  - ⛏️ Cavatore: pietra → **Scalpellino** (blocchi da costruzione) → **Scultore** (opere vendute a caro prezzo)
+- 🚶 **Vita nel borgo**: villici che passeggiano tra gli edifici e pecorelle al pascolo
 - 👑 **Evoluzione della civiltà** in 5 ere, tutte medievali: Accampamento → Villaggio → Borgo → Città Medievale → Regno
 - 🙏 **Miracoli divini** (stile Black & White): benedici i raccolti, invoca la pioggia, proteggi il borgo con uno scudo divino o scaglia fulmini sui nemici — tutto alimentato dalla **Fede** generata da cappelle e chiese
 - ⚔️ **Accampamenti nemici** ai confini: crescono lentamente, ogni tanto tentano una razzia (con largo preavviso). Difenditi con torri e soldati, oppure attaccali e saccheggiali. Se perdi una razzia perdi solo qualche scorta: **non si può mai perdere davvero**

@@ -147,14 +147,16 @@ html, body {
 .muted { opacity: 0.65; font-size: 13px; }
 .help-text b { color: #ffe9b0; }
 
+#topbar2 { display: contents; }
+#topbar2 .res { font-size: 11.5px; padding: 3px 7px; border-color: rgba(232, 182, 76, 0.4); }
+
 .cards {
-  display: flex; gap: 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
   padding: 6px 16px 18px;
 }
 .card {
-  flex: 0 0 118px;
   background: rgba(46, 55, 40, 0.9);
   border: 1.5px solid rgba(240,230,210,0.2);
   border-radius: 14px;

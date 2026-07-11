@@ -85,19 +85,29 @@ const UI = {
     const s = Game.state;
     for (const [id, def] of Object.entries(BUILDINGS)) {
       if (def.unbuildable) continue;
-      const locked = def.era > s.era;
+      const eraLocked = def.era > s.era;
+      const profLocked = def.needProf && Game.profLevel(def.needProf[0]) < def.needProf[1];
+      const locked = eraLocked || profLocked;
       const afford = Game.canAfford(def.cost);
       const card = document.createElement('div');
       card.className = 'card' + (locked ? ' locked' : (!afford ? ' unaffordable' : ''));
       const costTxt = Object.entries(def.cost)
         .map(([k, v]) => Game.resEmoji(k) + v).join(' ') || '—';
+      let lockTxt = costTxt;
+      if (eraLocked) lockTxt = '🔒 ' + ERAS[def.era].name;
+      else if (profLocked) lockTxt = '🔒 ' + PROFESSIONS[def.needProf[0]].name + ' liv.' + def.needProf[1];
       card.innerHTML =
         `<div class="emoji"><img class="spr" src="${Sprites.iconURL(id)}" alt="${def.name}"></div>` +
         `<div class="name">${def.name}</div>` +
-        `<div class="cost">${locked ? '🔒 ' + ERAS[def.era].name : costTxt}</div>` +
+        `<div class="cost">${lockTxt}</div>` +
         `<div class="desc">${def.desc}</div>`;
       card.onclick = () => {
-        if (locked) { this.toast('🔒 Si sblocca con: ' + ERAS[def.era].emoji + ' ' + ERAS[def.era].name); return; }
+        if (eraLocked) { this.toast('🔒 Si sblocca con: ' + ERAS[def.era].emoji + ' ' + ERAS[def.era].name); return; }
+        if (profLocked) {
+          const p = PROFESSIONS[def.needProf[0]];
+          this.toast(`🔒 Serve ${p.emoji} ${p.name} livello ${def.needProf[1]}: fai lavorare la catena!`);
+          return;
+        }
         this.buildMode = id;
         this.closePanels();
         this.toast('👆 Tocca un punto della mappa per piazzare: ' + def.emoji);
@@ -174,13 +184,31 @@ const UI = {
       html += `<p class="muted">Hai raggiunto l'apice del medioevo. ${s.goldenAge ? "🌅 Età dell'Oro!" : 'Costruisci la Cattedrale e libera la mappa dai nemici per l\'Età dell\'Oro.'}</p>`;
     }
 
+    // mestieri: esperienza, livelli e prossimi sblocchi
+    html += `<p style="margin-top:10px"><b>⚒️ Mestieri</b></p>`;
+    for (const [pid, p] of Object.entries(PROFESSIONS)) {
+      const xp = s.prof[pid] || 0;
+      const lvl = Game.profLevel(pid);
+      const maxLvl = p.levels.length;
+      let prog = 100, nextTxt = 'massimo';
+      if (lvl < maxLvl) {
+        const cur = p.levels[lvl - 1], next = p.levels[lvl];
+        prog = Math.floor((xp - cur) / (next - cur) * 100);
+        const unlock = p.unlocks[lvl + 1];
+        nextTxt = unlock ? `prossimo: ${BUILDINGS[unlock].emoji} ${BUILDINGS[unlock].name}` : 'prossimo: +15% produzione';
+      }
+      html += `<div class="kv"><span>${p.emoji} ${p.name} <b>liv.${lvl}</b></span><span class="muted">${nextTxt}</span></div>`;
+      html += `<div class="bar"><div style="width:${Math.min(100, prog)}%"></div></div>`;
+    }
+
     const happy = Game.happiness();
     html += `<div class="kv"><span>😊 Felicità</span><b>${happy}%</b></div>`;
     html += `<div class="bar"><div style="width:${happy}%"></div></div>`;
     html += `<div class="kv"><span>👥 Popolazione</span><b>${Math.floor(s.pop)} / ${Game.popMax()}</b></div>`;
     html += `<div class="kv"><span>🛡️ Difesa</span><b>${Game.defense()}${s.time < s.effects.scudoUntil ? ' (scudo ✨)' : ''}</b></div>`;
-    html += `<div class="kv"><span>⚔️ Soldati</span><b>${s.soldati} / ${Game.soldierCap()}</b></div>`;
-    html += `<button class="wide-btn" id="btn-recruit">⚔️ Recluta soldato (🍞${SOLDIER_COST.cibo} 💰${SOLDIER_COST.oro})</button>`;
+    const armed = Game.armedSoldiers();
+    html += `<div class="kv"><span>⚔️ Soldati</span><b>${s.soldati} / ${Game.soldierCap()}${armed ? ` (🏹${armed} armati)` : ''}</b></div>`;
+    html += `<button class="wide-btn" id="btn-recruit">⚔️ Recluta soldato (🍎${SOLDIER_COST.cibo} 💰${SOLDIER_COST.oro})</button>`;
 
     const alive = s.camps.filter(c => c.alive);
     html += `<p class="muted" style="margin-top:8px">🏴 Accampamenti nemici attivi: ${alive.length}` +
@@ -239,13 +267,33 @@ const UI = {
 
   showBuildingPanel(x, y, type) {
     const def = BUILDINGS[type];
+    const b = Game.state.buildings.find(bb => bb.x === x && bb.y === y);
     Renderer.selected = { x, y };
     this.closePanels();
     this.$('select-title').innerHTML = `${def.emoji} ${def.name} <button class="close" data-close>✕</button>`;
     let html = `<p>${def.desc}</p>`;
+    const convTxt = (conv) =>
+      Object.entries(conv.in).map(([k, v]) => Game.resEmoji(k) + (v * 60).toFixed(0)).join(' ') +
+      ' → ' +
+      Object.entries(conv.out).map(([k, v]) => Game.resEmoji(k) + (v * 60).toFixed(0)).join(' ') + ' al minuto';
     if (def.prod) {
       html += '<p class="muted">Produce: ' + Object.entries(def.prod)
         .map(([k, v]) => Game.resEmoji(k) + (v * 60).toFixed(0) + '/min').join(' ') + '</p>';
+    }
+    if (def.conv) html += `<p class="muted">Lavora: ${convTxt(def.conv)}</p>`;
+    if (def.modes && b) {
+      html += `<p class="muted">Lavora: ${convTxt(def.modes[b.mode])}</p>`;
+      html += `<p><b>Produzione:</b></p>`;
+      for (const m of Object.keys(def.modes)) {
+        const on = b.mode === m;
+        const outKey = Object.keys(def.modes[m].out)[0];
+        html += `<button class="wide-btn mode-btn" data-mode="${m}" ${on ? 'disabled' : ''}>` +
+          `${Game.resEmoji(outKey)} ${m.charAt(0).toUpperCase() + m.slice(1)}${on ? ' ✓ (attiva)' : ''}</button>`;
+      }
+    }
+    if (def.chain) {
+      const p = PROFESSIONS[def.chain];
+      html += `<p class="muted">Catena: ${p.emoji} ${p.name} liv.${Game.profLevel(def.chain)} (+${Math.round((Game.profBonus(def.chain) - 1) * 100)}% produzione)</p>`;
     }
     if (def.workers) html += `<p class="muted">Lavoratori richiesti: ${def.workers}</p>`;
     if (type !== 'municipio') {
@@ -256,6 +304,13 @@ const UI = {
     this.$('select-body').innerHTML = html;
     this.$('panel-select').classList.remove('hidden');
     this.rebindClose();
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.onclick = () => {
+        b.mode = btn.dataset.mode;
+        this.toast(`${def.emoji} Ora il falegname produce: ${btn.dataset.mode}`);
+        this.showBuildingPanel(x, y, type);
+      };
+    });
     const dem = this.$('btn-demolish');
     if (dem) dem.onclick = () => {
       Game.demolish(x, y);
@@ -315,6 +370,29 @@ const UI = {
     set('res-fede', Math.floor(s.res.fede));
     set('res-pop', Math.floor(s.pop) + '/' + Game.popMax());
     set('res-soldati', s.soldati);
+
+    // merci lavorate: chip visibili solo quando ne possiedi
+    const goods = ['farina', 'pane', 'assi', 'blocchi', 'mobili', 'armi'];
+    const bar2 = this.$('topbar2');
+    for (const g of goods) {
+      let chip = document.getElementById('res-' + g);
+      const has = s.res[g] >= 1;
+      if (!chip && has) {
+        chip = document.createElement('div');
+        chip.className = 'res';
+        chip.id = 'res-' + g;
+        chip.innerHTML = `<span class="ico">${RES_EMOJI[g]}</span><span class="val">0</span>`;
+        bar2.appendChild(chip);
+      }
+      if (chip) {
+        chip.style.display = has ? '' : 'none';
+        if (has) {
+          const el = chip.querySelector('.val');
+          const txt = String(Math.floor(s.res[g]));
+          if (el.textContent !== txt) el.textContent = txt;
+        }
+      }
+    }
 
     const era = ERAS[s.era];
     const badge = this.$('era-badge');

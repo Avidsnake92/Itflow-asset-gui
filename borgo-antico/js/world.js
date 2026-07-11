@@ -48,7 +48,7 @@ const World = {
         if (e < 0.26 && dCenter > 0.3) t = T.WATER;
         else if (e > 0.78) t = T.ROCK;
         else if (veg(x, y) > 0.62 && dCenter > 0.18) t = T.FOREST;
-        else if (fert(x, y) > 0.62) t = T.FERTILE;
+        else if (fert(x, y) > 0.68) t = T.FERTILE;
         // area di partenza pulita attorno al centro
         if (dCenter < 0.11 && t !== T.GRASS && t !== T.FERTILE) t = T.GRASS;
         grid[y * N + x] = { t, b: null, deco: rand() };

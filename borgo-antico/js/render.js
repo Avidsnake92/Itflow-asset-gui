@@ -96,6 +96,8 @@ const Renderer = {
     ctx.fillRect(0, 0, this.w, this.h);
 
     this.drawMap(ctx, night);
+    this.updateLife(dt);
+    this.drawLife(ctx);
     this.drawCamps(ctx, night);
     this.drawEffects(ctx, dt);
     this.drawParticles(ctx, dt);
@@ -203,6 +205,16 @@ const Renderer = {
       Math.round(W2 * 2) + 2, Math.round(H2 * 2) + 1);
 
     const z = this.cam.zoom;
+    // decorazioni sparse sull'erba: fiori, funghi, sassi, ciuffi
+    if (cell.t === T.GRASS && !cell.b) {
+      const d = (v * 997) | 0;
+      if (d % 10 < 4) {
+        const kind = d % 4;
+        const ox = ((d % 23) - 11) * 1.4 * z;
+        const oy = ((d % 13) - 6) * 0.9 * z;
+        this.sprite(ctx, Sprites.decor(kind), cx + ox, cy + oy + H2 * 0.3, 1.6 * z);
+      }
+    }
     if (cell.t === T.FOREST) {
       const n = 2 + ((v * 2) | 0);
       for (let i = 0; i < n; i++) {
@@ -266,6 +278,114 @@ const Renderer = {
       const bob = Math.abs(Math.sin(this.time * 8)) * 2 * z;
       this.sprite(ctx, Sprites.soldier(), p.x - 4 * z, p.y - bob, 2 * z);
       this.sprite(ctx, Sprites.soldier(), p.x + 6 * z, p.y + 3 * z - bob, 2 * z);
+    }
+  },
+
+  // ---------- vita nel borgo: villici e pecore ----------
+  walkers: [],
+  flock: [],
+
+  _buildingSpot(b) {
+    const p = this.tileToWorld(b.x, b.y);
+    return {
+      x: p.x + (Math.random() - 0.5) * 22,
+      y: p.y + 6 + (Math.random() - 0.5) * 10,
+    };
+  },
+
+  _grassSpot(nearX, nearY, radius) {
+    const s = Game.state;
+    const N = CONFIG.MAP;
+    for (let tries = 0; tries < 8; tries++) {
+      const tx = Math.round(nearX + (Math.random() - 0.5) * radius * 2);
+      const ty = Math.round(nearY + (Math.random() - 0.5) * radius * 2);
+      if (tx < 1 || ty < 1 || tx >= N - 1 || ty >= N - 1) continue;
+      const cell = s.grid[ty * N + tx];
+      if ((cell.t === T.GRASS || cell.t === T.FERTILE) && !cell.b) {
+        const p = this.tileToWorld(tx, ty);
+        return { x: p.x + (Math.random() - 0.5) * 20, y: p.y + (Math.random() - 0.5) * 10, tx, ty };
+      }
+    }
+    return null;
+  },
+
+  updateLife(dt) {
+    const s = Game.state;
+    if (!s) return;
+    const bl = s.buildings;
+
+    // villici a passeggio tra gli edifici
+    const wantWalkers = bl.length >= 2 ? Math.min(12, 1 + Math.floor(s.pop / 3)) : 0;
+    if (this.walkers.length < wantWalkers && Math.random() < dt * 0.8) {
+      const from = bl[(Math.random() * bl.length) | 0];
+      const pos = this._buildingSpot(from);
+      this.walkers.push({
+        x: pos.x, y: pos.y, target: null, pause: Math.random() * 2,
+        color: (Math.random() * 4) | 0, speed: 13 + Math.random() * 6,
+      });
+    }
+    if (this.walkers.length > wantWalkers) this.walkers.length = wantWalkers;
+
+    for (const w of this.walkers) {
+      if (w.pause > 0) { w.pause -= dt; continue; }
+      if (!w.target) {
+        const to = bl[(Math.random() * bl.length) | 0];
+        w.target = this._buildingSpot(to);
+        continue;
+      }
+      const dx = w.target.x - w.x, dy = w.target.y - w.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 3) {
+        w.target = null;
+        w.pause = 1 + Math.random() * 4;
+      } else {
+        w.x += dx / dist * w.speed * dt;
+        w.y += dy / dist * w.speed * dt;
+        w.dir = dx >= 0 ? 1 : -1;
+      }
+    }
+
+    // pecorelle al pascolo attorno al borgo
+    const wantSheep = bl.length >= 3 ? 5 : 0;
+    if (this.flock.length < wantSheep && Math.random() < dt * 0.5) {
+      const home = bl[(Math.random() * bl.length) | 0];
+      const spot = this._grassSpot(home.x, home.y, 5);
+      if (spot) this.flock.push({ x: spot.x, y: spot.y, tx: spot.tx, ty: spot.ty, target: null, pause: Math.random() * 3 });
+    }
+    if (this.flock.length > wantSheep) this.flock.length = wantSheep;
+
+    for (const sh of this.flock) {
+      if (sh.pause > 0) { sh.pause -= dt; continue; }
+      if (!sh.target) {
+        sh.target = this._grassSpot(sh.tx, sh.ty, 2);
+        if (!sh.target) sh.pause = 2;
+        continue;
+      }
+      const dx = sh.target.x - sh.x, dy = sh.target.y - sh.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 2) {
+        sh.tx = sh.target.tx; sh.ty = sh.target.ty;
+        sh.target = null;
+        sh.pause = 2 + Math.random() * 5;   // bruca con calma
+      } else {
+        sh.x += dx / dist * 5 * dt;
+        sh.y += dy / dist * 5 * dt;
+      }
+    }
+  },
+
+  drawLife(ctx) {
+    const z = this.cam.zoom;
+    const frame = ((this.time * 6) | 0) % 2;
+    for (const sh of this.flock) {
+      const p = this.worldToScreen(sh.x, sh.y);
+      if (p.x < -20 || p.x > this.w + 20 || p.y < -20 || p.y > this.h + 20) continue;
+      this.sprite(ctx, Sprites.sheep(sh.target ? frame : 0), p.x, p.y, 1.6 * z);
+    }
+    for (const w of this.walkers) {
+      const p = this.worldToScreen(w.x, w.y);
+      if (p.x < -20 || p.x > this.w + 20 || p.y < -20 || p.y > this.h + 20) continue;
+      this.sprite(ctx, Sprites.villager(w.color, w.target && w.pause <= 0 ? frame : 0), p.x, p.y, 1.6 * z);
     }
   },
 

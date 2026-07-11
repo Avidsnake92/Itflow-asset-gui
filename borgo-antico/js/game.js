@@ -20,7 +20,11 @@ const Game = {
       grid: world.grid,
       camps: world.camps,
       buildings: [],
-      res: { legna: 80, pietra: 30, cibo: 60, oro: 20, fede: 0 },
+      res: {
+        legna: 80, pietra: 30, cibo: 60, oro: 20, fede: 0,
+        farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
+      },
+      prof: { contadino: 0, boscaiolo: 0, cavatore: 0 },
       pop: 5,
       soldati: 0,
       era: 0,
@@ -44,7 +48,7 @@ const Game = {
       terrain: s.grid.map(c => c.t),
       buildings: s.buildings,
       camps: s.camps,
-      res: s.res, pop: s.pop, soldati: s.soldati, era: s.era,
+      res: s.res, prof: s.prof, pop: s.pop, soldati: s.soldati, era: s.era,
       time: s.time, effects: s.effects, raid: s.raid, attack: s.attack,
       goldenAge: s.goldenAge,
     };
@@ -61,11 +65,20 @@ const Game = {
     this.state = {
       version: 1, seed: data.seed, grid,
       camps: data.camps, buildings: [],
-      res: data.res, pop: data.pop, soldati: data.soldati, era: data.era,
+      // i salvataggi vecchi non hanno le nuove risorse/mestieri: si integrano
+      res: Object.assign({
+        legna: 0, pietra: 0, cibo: 0, oro: 0, fede: 0,
+        farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
+      }, data.res),
+      prof: Object.assign({ contadino: 0, boscaiolo: 0, cavatore: 0 }, data.prof),
+      pop: data.pop, soldati: data.soldati, era: data.era,
       time: data.time, effects: data.effects, raid: data.raid, attack: data.attack,
       goldenAge: !!data.goldenAge,
     };
-    for (const b of data.buildings) this.placeBuilding(b.x, b.y, b.type, true);
+    for (const b of data.buildings) {
+      const placed = this.placeBuilding(b.x, b.y, b.type, true);
+      if (b.mode) placed.mode = b.mode;
+    }
     return true;
   },
 
@@ -89,8 +102,12 @@ const Game = {
     for (const b of this.state.buildings) m += BUILDINGS[b.type].soldierCap || 0;
     return m;
   },
+  // soldati con armi del falegname combattono meglio (+1 a testa)
+  armedSoldiers() {
+    return Math.min(this.state.soldati, Math.floor(this.state.res.armi));
+  },
   defense() {
-    let d = this.state.soldati * 2;
+    let d = this.state.soldati * 2 + this.armedSoldiers();
     for (const b of this.state.buildings) d += BUILDINGS[b.type].defense || 0;
     if (this.state.time < this.state.effects.scudoUntil) d *= 2;
     return Math.round(d);
@@ -98,10 +115,37 @@ const Game = {
   happiness() {
     let h = 50;
     for (const b of this.state.buildings) h += BUILDINGS[b.type].happy || 0;
+    h += Math.min(12, Math.floor(this.state.res.mobili / 4)); // case arredate
+    if (this.state.res.pane > 1) h += 5;                      // profumo di pane
     const max = this.popMax();
     if (max > 0 && this.state.pop / max > 0.9) h -= 10; // sovraffollamento
-    if (this.state.res.cibo <= 0) h -= 25;
+    if (this.state.res.cibo <= 0 && this.state.res.pane <= 0) h -= 25;
     return Math.max(5, Math.min(100, h));
+  },
+
+  // ---------- mestieri ----------
+  profLevel(prof) {
+    const xp = this.state.prof[prof] || 0;
+    const lv = PROFESSIONS[prof].levels;
+    let l = 1;
+    for (let i = 1; i < lv.length; i++) if (xp >= lv[i]) l = i + 1;
+    return l;
+  },
+  profBonus(prof) {
+    return 1 + PROF_LEVEL_BONUS * (this.profLevel(prof) - 1);
+  },
+  addProfXp(prof, amount) {
+    const before = this.profLevel(prof);
+    this.state.prof[prof] += amount;
+    const after = this.profLevel(prof);
+    if (after > before) {
+      const unlock = PROFESSIONS[prof].unlocks[after];
+      const p = PROFESSIONS[prof];
+      this.showBanner(
+        `${p.emoji} ${p.name}: livello ${after}! ` +
+        (unlock ? `Sbloccato: ${BUILDINGS[unlock].emoji} ${BUILDINGS[unlock].name}` : 'Produzione della catena +15%'),
+        'good');
+    }
   },
   jobsNeeded() {
     let j = 0;
@@ -120,6 +164,10 @@ const Game = {
     const def = BUILDINGS[type];
     if (!def) return { ok: false, why: 'Edificio sconosciuto' };
     if (def.era > s.era) return { ok: false, why: 'Era non raggiunta' };
+    if (def.needProf && this.profLevel(def.needProf[0]) < def.needProf[1]) {
+      const p = PROFESSIONS[def.needProf[0]];
+      return { ok: false, why: `Serve ${p.name} liv.${def.needProf[1]}` };
+    }
     if (def.unique && this.countType(type) > 0) return { ok: false, why: 'Già costruito' };
     const cell = s.grid[y * CONFIG.MAP + x];
     if (!cell) return { ok: false, why: 'Fuori mappa' };
@@ -145,8 +193,10 @@ const Game = {
   placeBuilding(x, y, type, silent) {
     const s = this.state;
     const b = { type, x, y };
+    if (BUILDINGS[type].modes) b.mode = Object.keys(BUILDINGS[type].modes)[0];
     s.buildings.push(b);
     s.grid[y * CONFIG.MAP + x].b = type;
+    return b;
   },
 
   demolish(x, y) {
@@ -191,14 +241,14 @@ const Game = {
   },
 
   resEmoji(k) {
-    return { legna: '🪵', pietra: '🪨', cibo: '🍞', oro: '💰', fede: '✨' }[k] || k;
+    return RES_EMOJI[k] || k;
   },
 
   // ---------- soldati ----------
   recruit() {
     const s = this.state;
     if (s.soldati >= this.soldierCap()) { this.notify('🚫 Serve un\'altra caserma'); return; }
-    if (!this.canAfford(SOLDIER_COST)) { this.notify('🚫 Servono 🍞20 💰10'); return; }
+    if (!this.canAfford(SOLDIER_COST)) { this.notify('🚫 Servono 🍎20 💰10'); return; }
     if (s.pop < 2) { this.notify('🚫 Popolazione insufficiente'); return; }
     this.pay(SOLDIER_COST);
     s.pop -= 1;
@@ -286,7 +336,7 @@ const Game = {
     s.attack = null;
     const camp = s.camps[atk.camp];
     if (!camp.alive) { s.soldati += atk.soldiers; return; }
-    const power = atk.soldiers * 2;
+    const power = atk.soldiers * 2 + Math.min(atk.soldiers, Math.floor(s.res.armi));
     if (power >= camp.strength) {
       const losses = Math.min(atk.soldiers - 1, Math.floor(camp.strength / 5));
       s.soldati += atk.soldiers - losses;
@@ -359,38 +409,70 @@ const Game = {
     const jobs = this.jobsNeeded();
     const eff = jobs > 0 ? Math.min(1, s.pop / jobs) : 1;
     const harvest = s.time < s.effects.raccoltoUntil ? 2 : 1;
+    const xpGain = {};   // xp guadagnata dai mestieri in questo tick
 
     for (const b of s.buildings) {
       const def = BUILDINGS[b.type];
-      if (!def.prod) continue;
       let mult = eff;
+      if (def.chain) mult *= this.profBonus(def.chain);   // esperienza del mestiere
       if (def.adjBonus) {
         const n = World.neighbors(b.x, b.y)
           .filter(i => s.grid[i].t === def.adjBonus.terrain).length;
         mult *= 1 + def.adjBonus.mult * n;
       }
-      for (const k in def.prod) {
-        let amount = def.prod[k] * mult;
-        if (k === 'cibo') {
-          const cell = s.grid[b.y * CONFIG.MAP + b.x];
-          if (cell.t === T.FERTILE) amount *= 1.5;
-          const nearMill = World.neighbors(b.x, b.y).some(i => s.grid[i].b === 'mulino');
-          if (nearMill) amount *= 1.5;
-          amount *= harvest;
+
+      let worked = false;
+
+      // produzione semplice
+      if (def.prod) {
+        for (const k in def.prod) {
+          let amount = def.prod[k] * mult;
+          if (k === 'cibo') {
+            const cell = s.grid[b.y * CONFIG.MAP + b.x];
+            if (cell.t === T.FERTILE) amount *= 1.5;
+            amount *= harvest;
+          }
+          s.res[k] += amount * CONFIG.TICK;
         }
-        s.res[k] += amount * CONFIG.TICK;
+        worked = true;
+      }
+
+      // trasformazione (mulino, panificio, segheria, scalpellino, scultore, falegname)
+      const conv = def.conv || (def.modes && def.modes[b.mode]);
+      if (conv) {
+        const inKey = Object.keys(conv.in)[0];
+        const want = conv.in[inKey] * eff * CONFIG.TICK;
+        const got = Math.min(want, s.res[inKey]);
+        if (got > 0.001) {
+          s.res[inKey] -= got;
+          const ratio = got / (conv.in[inKey] * CONFIG.TICK || 1);
+          for (const k in conv.out) {
+            s.res[k] += conv.out[k] * mult * ratio * CONFIG.TICK;
+          }
+          worked = true;
+        }
+      }
+
+      // il lavoro insegna: xp per la catena del mestiere
+      if (worked && def.chain) {
+        xpGain[def.chain] = (xpGain[def.chain] || 0) + eff * CONFIG.TICK;
       }
     }
+    for (const p in xpGain) this.addProfXp(p, xpGain[p]);
 
-    // consumo cibo
-    const eaten = (s.pop * 0.1 + s.soldati * 0.15) * CONFIG.TICK;
-    s.res.cibo = Math.max(0, s.res.cibo - eaten);
+    // consumo: prima il pane (nutre x3), poi il grano
+    let need = (s.pop * 0.1 + s.soldati * 0.15) * CONFIG.TICK;
+    const paneEaten = Math.min(s.res.pane, need / 3);
+    s.res.pane -= paneEaten;
+    need -= paneEaten * 3;
+    if (need > 0) s.res.cibo = Math.max(0, s.res.cibo - need);
 
     // crescita popolazione
     const max = this.popMax();
-    if (s.res.cibo > 5 && s.pop < max) {
+    const fed = s.res.cibo > 5 || s.res.pane > 2;
+    if (fed && s.pop < max) {
       s.pop += 0.02 * (this.happiness() / 50) * CONFIG.TICK;
-    } else if (s.res.cibo <= 0 && s.pop > 3) {
+    } else if (s.res.cibo <= 0 && s.res.pane <= 0 && s.pop > 3) {
       s.pop -= 0.01 * CONFIG.TICK; // declino dolce, mai catastrofico
     }
     s.pop = Math.min(s.pop, max);

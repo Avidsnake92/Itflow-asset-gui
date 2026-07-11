@@ -21,6 +21,8 @@ const PAL = {
   cream: '#f0e6d2',
   leaf: '#3b7034', leafD: '#2f5d2b', leafL: '#4d8a44',
   fire: '#ff9b3d', fireY: '#ffd66b',
+  // paglia dorata alla Cultures
+  goldR: '#e2b23e', goldRL: '#f2cd63', goldRD: '#b98a2c', goldRX: '#93691e',
 };
 
 // pseudo-random deterministico per pattern/dithering
@@ -63,15 +65,18 @@ const Sprites = {
         for (let x = 16 - hw; x <= 15 + hw; x++) {
           P.px(x, y, this._terrainColor(t, x, y, variant, frame || 0));
         }
-        // ombreggiatura bordi bassi del rombo (rilievo)
-        if (y >= 8) {
-          P.px(16 - hw, y, 'rgba(20,16,8,0.28)');
-          P.px(16 - hw + 1, y, 'rgba(20,16,8,0.14)');
-          P.px(15 + hw, y, 'rgba(20,16,8,0.28)');
-          P.px(15 + hw - 1, y, 'rgba(20,16,8,0.14)');
-        } else {
-          P.px(16 - hw, y, 'rgba(255,250,230,0.10)');
-          P.px(15 + hw, y, 'rgba(255,250,230,0.10)');
+        // ombreggiatura dei bordi solo dove il confine ha senso
+        // (acqua, roccia, campi arati) — l'erba resta un prato continuo
+        if (t === T.WATER || t === T.ROCK || t === T.FERTILE) {
+          if (y >= 8) {
+            P.px(16 - hw, y, 'rgba(20,16,8,0.28)');
+            P.px(16 - hw + 1, y, 'rgba(20,16,8,0.14)');
+            P.px(15 + hw, y, 'rgba(20,16,8,0.28)');
+            P.px(15 + hw - 1, y, 'rgba(20,16,8,0.14)');
+          } else {
+            P.px(16 - hw, y, 'rgba(255,250,230,0.10)');
+            P.px(15 + hw, y, 'rgba(255,250,230,0.10)');
+          }
         }
       }
     });
@@ -81,16 +86,16 @@ const Sprites = {
     const n = pr(x, y, v * 7 + t * 31);
     switch (t) {
       case T.GRASS:
-        if (n > 0.93) return '#82b25a';
-        if (n < 0.08) return '#5d8a3e';
-        return n < 0.5 ? '#6f9c4a' : '#699547';
+        if (n > 0.93) return '#94c268';
+        if (n < 0.08) return '#6b9a46';
+        return n < 0.5 ? '#7fae55' : '#79a850';
       case T.FERTILE:
-        if (y % 3 === 1 && x > 3 && x < 28) return '#8a7a3d';   // solchi
-        if (n > 0.9) return '#c9a24b';                          // spighe
-        return n < 0.5 ? '#a3a855' : '#99a04f';
+        if (y % 4 === 1 && x > 4 && x < 27) return '#98a04c';   // solchi leggeri
+        if (n > 0.88) return '#d4ad52';                         // spighe
+        return n < 0.5 ? '#aeb35c' : '#a6ad57';
       case T.FOREST:
-        if (n > 0.92) return '#456d31';
-        return n < 0.5 ? '#4f7c38' : '#4a7534';
+        if (n > 0.92) return '#527c39';
+        return n < 0.5 ? '#5c8a40' : '#56843c';
       case T.ROCK:
         if (n > 0.9) return '#b5ae9e';
         if (n < 0.1) return '#736d60';
@@ -135,6 +140,69 @@ const Sprites = {
           P.px(x, i + 5, n > 0.82 ? PAL.leafL : (n < 0.2 ? PAL.leafD : PAL.leaf));
         }
       });
+    });
+  },
+
+  // ---------- decorazioni del prato (fiori, funghi, sassi, ciuffi) ----------
+  decor(kind) {
+    const key = 'dec' + kind;
+    if (this._c[key]) return this._c[key];
+    return this._mk(key, 10, 8, 5, 7, (P) => {
+      if (kind === 0) {            // fiorellini
+        const cols = ['#e05a6e', '#f2cd63', '#f0e6d2'];
+        for (let i = 0; i < 3; i++) {
+          const x = 1 + i * 3, y = 2 + ((i * 7) % 3);
+          P.px(x, y + 1, '#2f5d2b');
+          P.px(x, y, cols[i]);
+        }
+      } else if (kind === 1) {     // funghi rossi
+        P.px(3, 5, '#e8d8b0'); P.r(2, 3, 3, 2, '#c0392b');
+        P.px(3, 3, '#f0e6d2');
+        P.px(7, 6, '#e8d8b0'); P.r(6, 5, 3, 1, '#c0392b');
+      } else if (kind === 2) {     // sassolini
+        P.r(2, 5, 3, 2, PAL.stone); P.px(2, 5, PAL.stoneL);
+        P.r(6, 6, 2, 1, PAL.stoneD);
+      } else {                     // ciuffo d'erba alta
+        for (let i = 0; i < 4; i++) {
+          const x = 2 + i * 2;
+          P.col(x, 3 + (i % 2), 6, i % 2 ? '#5d8a3e' : '#82b25a');
+        }
+      }
+    });
+  },
+
+  // ---------- villico che cammina (2 frame, 4 colori di tunica) ----------
+  villager(colorIdx, frame) {
+    const key = `vil${colorIdx}f${frame}`;
+    const tunics = ['#4a6fa5', '#b8452f', '#4e7c3a', '#c9a24b'];
+    return this._mk(key, 8, 12, 4, 11, (P) => {
+      const tunic = tunics[colorIdx % 4];
+      P.px(3, 0, '#6b4424'); P.px(4, 0, '#6b4424');   // capelli
+      P.r(3, 1, 2, 2, '#e8c39a');                     // viso
+      P.r(2, 3, 4, 4, tunic);                         // tunica
+      P.px(1, 4, '#e8c39a'); P.px(6, 4, '#e8c39a');   // braccia
+      if (frame === 0) {
+        P.r(2, 7, 1, 3, PAL.beam); P.r(5, 7, 1, 3, PAL.beam);
+      } else {
+        P.r(3, 7, 1, 3, PAL.beam); P.r(4, 7, 1, 2, PAL.beam);
+      }
+    });
+  },
+
+  // ---------- pecorella (2 frame) ----------
+  sheep(frame) {
+    const key = 'sheep' + frame;
+    return this._mk(key, 12, 9, 6, 8, (P) => {
+      P.r(2, 2, 8, 4, '#f0ece2');                     // lana
+      P.px(2, 2, '#dcd6c8'); P.px(9, 2, '#dcd6c8');
+      P.px(3, 1, '#f0ece2'); P.px(6, 1, '#f0ece2'); P.px(8, 1, '#f0ece2');
+      P.r(9, 3, 2, 2, '#3a3226');                     // testa
+      P.px(11, 3, '#3a3226');
+      if (frame === 0) {
+        P.px(3, 6, '#3a3226'); P.px(8, 6, '#3a3226');
+      } else {
+        P.px(4, 6, '#3a3226'); P.px(7, 6, '#3a3226');
+      }
     });
   },
 
@@ -238,27 +306,66 @@ const Sprites = {
     });
   },
 
+  // tetto di paglia dorata alla Cultures, con anelli di texture
+  _goldCone(P, cx, topY, botY, maxHalf) {
+    const h = botY - topY;
+    for (let y = topY; y <= botY; y++) {
+      const t = (y - topY) / h;
+      const half = Math.max(1, Math.round(maxHalf * t));
+      for (let x = cx - half; x <= cx + half - 1; x++) {
+        let c = x < cx - half * 0.4 ? PAL.goldRD : (x > cx + half * 0.3 ? PAL.goldR : PAL.goldRL);
+        if ((y - topY) % 3 === 2) c = x < cx ? PAL.goldRX : PAL.goldRD;  // anelli
+        if (pr(x, y, 21) > 0.9) c = PAL.goldRL;
+        P.px(x, y, c);
+      }
+      P.px(cx - half, y, PAL.goldRX);
+      P.px(cx + half - 1, y, PAL.goldRX);
+    }
+    // ciuffo in cima
+    P.col(cx, topY - 3, topY, PAL.goldRD);
+    P.px(cx - 1, topY - 3, PAL.goldRL); P.px(cx + 1, topY - 2, PAL.goldRL);
+  },
+
   _buildings: {
+    // grande sala nordica con tetto d'oro e corna
     municipio(P, cx, by, n) {
-      const { apexY } = this._hut(P, { cx, by, w: 11, h: 11, roofH: 8, roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL });
-      this._beams(P, cx, by, 11, 11);
+      const { apexY } = this._hut(P, {
+        cx, by, w: 12, h: 9, roofH: 12,
+        wallL: '#5c4226', wallR: '#7a5a34',
+        roofL: PAL.goldRD, roofR: PAL.goldR, edge: PAL.goldRL,
+      });
+      // texture della paglia (strisce oblique)
+      for (let d = 2; d <= 12; d += 3) {
+        const bot = by - ((d - 1) >> 1) - 9;
+        P.px(cx - d, bot - 2, PAL.goldRX);
+        P.px(cx + d - 1, bot - 3, PAL.goldRL);
+      }
+      this._beams(P, cx, by, 12, 9);
       this._door(P, cx, by, 4, 6);
-      this._win(P, cx - 8, by - 11, n); this._win(P, cx + 6, by - 12, n);
-      this._win(P, cx - 5, by - 9, n); this._win(P, cx + 3, by - 10, n);
-      // stendardo dorato sopra la porta
-      P.r(cx - 1, by - 10, 3, 4, PAL.gold);
-      P.px(cx, by - 9, PAL.red);
-      this._flag(P, cx, apexY, PAL.gold);
+      // torce ai lati della porta
+      for (const tx of [cx - 4, cx + 4]) {
+        P.col(tx, by - 4, by - 1, PAL.beam);
+        P.px(tx, by - 5, PAL.fire); P.px(tx, by - 6, PAL.fireY);
+      }
+      this._win(P, cx - 9, by - 10, n); this._win(P, cx + 7, by - 11, n);
+      // corna sul colmo
+      P.px(cx - 2, apexY - 1, PAL.cream); P.px(cx - 3, apexY - 2, PAL.cream); P.px(cx - 3, apexY - 3, PAL.cream);
+      P.px(cx + 1, apexY - 1, PAL.cream); P.px(cx + 2, apexY - 2, PAL.cream); P.px(cx + 2, apexY - 3, PAL.cream);
+      this._flag(P, cx, apexY - 3, PAL.gold);
     },
 
+    // capanna rotonda col tetto d'oro (iconica di Cultures)
     casa(P, cx, by, n) {
-      this._hut(P, { cx, by, w: 7, h: 7, roofH: 6 });
-      this._beams(P, cx, by, 7, 7);
-      this._door(P, cx, by, 3, 4);
-      this._win(P, cx - 5, by - 7, n); this._win(P, cx + 3, by - 7, n);
-      // comignolo
-      P.r(cx + 3, by - 14, 2, 4, PAL.stoneD);
-      P.px(cx + 3, by - 15, PAL.outline); P.px(cx + 4, by - 15, PAL.outline);
+      // muro circolare in graticcio
+      for (let x = cx - 8; x <= cx + 7; x++) {
+        const edge = (x === cx - 8 || x === cx + 7);
+        P.col(x, by - 5, by, edge ? PAL.plasterD : ((x - cx) % 4 === 0 ? PAL.beam : PAL.plaster));
+        P.px(x, by, 'rgba(20,14,6,0.3)');
+      }
+      this._goldCone(P, cx, by - 20, by - 5, 11);
+      this._door(P, cx, by, 4, 4);
+      this._win(P, cx - 6, by - 4, n);
+      this._win(P, cx + 4, by - 4, n);
     },
 
     fattoria(P, cx, by, n) {
@@ -301,6 +408,96 @@ const Sprites = {
       P.r(cx - 11, by - 13, 21, 1, PAL.wood);
       // piccone
       P.px(cx + 6, by - 2, PAL.stoneL); P.col(cx + 6, by - 1, by, PAL.wood);
+    },
+
+    // --- catena del contadino ---
+    panificio(P, cx, by, n) {
+      this._hut(P, {
+        cx, by, w: 8, h: 8, roofH: 6,
+        roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL,
+      });
+      this._beams(P, cx, by, 8, 8);
+      // trave orizzontale (graticcio)
+      for (let d = 1; d <= 8; d++) {
+        const yb = by - ((d - 1) >> 1) - 4;
+        P.px(cx - d, yb, PAL.beam); P.px(cx + d - 1, yb, PAL.beam);
+      }
+      this._door(P, cx, by, 3, 5);
+      this._win(P, cx + 4, by - 8, n);
+      // insegna: pagnotta dorata
+      P.r(cx - 6, by - 9, 3, 2, PAL.gold);
+      P.px(cx - 5, by - 10, PAL.goldRL);
+      // forno con comignolo
+      P.r(cx + 6, by - 13, 2, 5, PAL.stoneD);
+      P.px(cx + 6, by - 14, PAL.outline); P.px(cx + 7, by - 14, PAL.outline);
+    },
+
+    // --- catena del boscaiolo ---
+    segheria(P, cx, by, n) {
+      // tettoia aperta a falda unica
+      P.col(cx - 9, by - 10, by, PAL.beam);
+      P.col(cx + 8, by - 8, by, PAL.beam);
+      for (let x = -10; x <= 9; x++) {
+        const y = by - 10 + Math.round((x + 10) * 0.14);
+        P.px(cx + x, y, PAL.woodD);
+        P.px(cx + x, y + 1, PAL.wood);
+      }
+      // lama circolare
+      P.r(cx - 2, by - 6, 5, 5, PAL.stoneL);
+      P.px(cx - 2, by - 6, PAL.stoneD); P.px(cx + 2, by - 6, PAL.stoneD);
+      P.px(cx - 2, by - 2, PAL.stoneD); P.px(cx + 2, by - 2, PAL.stoneD);
+      P.px(cx, by - 4, PAL.outline);
+      // tronchi e assi
+      for (let i = 0; i < 2; i++) P.r(cx - 12, by - 2 - i * 2, 6, 2, i ? PAL.woodL : PAL.wood);
+      for (let i = 0; i < 3; i++) P.r(cx + 5, by - 1 - i, 8 - i * 2, 1, PAL.woodL);
+    },
+
+    falegname(P, cx, by, n) {
+      this._hut(P, {
+        cx, by, w: 7, h: 8, roofH: 5,
+        wallL: PAL.woodD, wallR: PAL.wood,
+        roofL: PAL.woodD, roofR: PAL.woodL, edge: PAL.woodL,
+      });
+      this._door(P, cx, by, 3, 5);
+      this._win(P, cx + 3, by - 8, n);
+      // insegna: sedia
+      P.px(cx - 6, by - 10, PAL.gold); P.px(cx - 6, by - 9, PAL.gold);
+      P.px(cx - 5, by - 9, PAL.gold); P.px(cx - 6, by - 8, PAL.gold);
+      // banco da lavoro con asse
+      P.r(cx + 6, by - 3, 6, 1, PAL.woodL);
+      P.col(cx + 7, by - 2, by, PAL.beam);
+      P.col(cx + 10, by - 2, by, PAL.beam);
+      P.r(cx + 7, by - 4, 4, 1, PAL.cream);
+    },
+
+    // --- catena del cavatore ---
+    scalpellino(P, cx, by, n) {
+      this._hut(P, {
+        cx: cx + 3, by: by - 1, w: 6, h: 6, roofH: 4,
+        wallL: PAL.stoneD, wallR: PAL.stone,
+        roofL: PAL.woodD, roofR: PAL.wood, edge: PAL.woodL,
+      });
+      this._door(P, cx + 3, by - 1, 3, 4);
+      // blocchi squadrati in mostra
+      P.r(cx - 10, by - 4, 4, 4, PAL.stoneL); P.r(cx - 10, by - 4, 4, 1, PAL.cream);
+      P.r(cx - 6, by - 3, 4, 3, PAL.stone); P.r(cx - 6, by - 3, 4, 1, PAL.stoneL);
+      P.r(cx - 9, by - 7, 4, 3, PAL.cream); P.px(cx - 9, by - 7, PAL.stoneL);
+      // scalpello e mazza
+      P.px(cx - 1, by - 1, PAL.stoneD); P.col(cx - 1, by - 1, by, PAL.wood);
+    },
+
+    scultore(P, cx, by, n) {
+      this._hut(P, {
+        cx: cx + 4, by, w: 6, h: 7, roofH: 5,
+        roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL,
+      });
+      this._door(P, cx + 4, by, 3, 4);
+      this._win(P, cx + 7, by - 7, n);
+      // statua in lavorazione davanti alla bottega
+      P.r(cx - 9, by - 2, 6, 2, PAL.stone);
+      P.r(cx - 8, by - 8, 3, 6, PAL.stoneL);
+      P.px(cx - 7, by - 9, PAL.cream);
+      P.px(cx - 5, by - 7, PAL.stoneD);
     },
 
     cappella(P, cx, by, n) {
