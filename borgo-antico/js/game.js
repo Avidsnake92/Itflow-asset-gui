@@ -23,6 +23,7 @@ const Game = {
       res: {
         legna: 80, pietra: 30, cibo: 60, oro: 20, fede: 0,
         farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
+        acqua: 0, miele: 0, idromele: 0, pelle: 0, scarpe: 0, ferro: 0, attrezzi: 0,
       },
       prof: { contadino: 0, boscaiolo: 0, cavatore: 0 },
       pop: 5,
@@ -33,9 +34,12 @@ const Game = {
       raid: null,
       attack: null,
       goldenAge: false,
+      explored: new Array(CONFIG.MAP * CONFIG.MAP).fill(0),
+      scout: null,
     };
     // municipio al centro
     const c = CONFIG.MAP >> 1;
+    this.reveal(c, c, SCOUT.START_REVEAL);
     this.placeBuilding(c, c, 'municipio', true);
     this.save();
   },
@@ -51,6 +55,7 @@ const Game = {
       res: s.res, prof: s.prof, pop: s.pop, soldati: s.soldati, era: s.era,
       time: s.time, effects: s.effects, raid: s.raid, attack: s.attack,
       goldenAge: s.goldenAge,
+      explored: s.explored.join(''), scout: s.scout,
     };
     try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(data)); } catch (e) {}
   },
@@ -69,11 +74,17 @@ const Game = {
       res: Object.assign({
         legna: 0, pietra: 0, cibo: 0, oro: 0, fede: 0,
         farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
+        acqua: 0, miele: 0, idromele: 0, pelle: 0, scarpe: 0, ferro: 0, attrezzi: 0,
       }, data.res),
       prof: Object.assign({ contadino: 0, boscaiolo: 0, cavatore: 0 }, data.prof),
       pop: data.pop, soldati: data.soldati, era: data.era,
       time: data.time, effects: data.effects, raid: data.raid, attack: data.attack,
       goldenAge: !!data.goldenAge,
+      // i salvataggi precedenti alla nebbia di guerra hanno tutto esplorato
+      explored: data.explored
+        ? data.explored.split('').map(Number)
+        : new Array(CONFIG.MAP * CONFIG.MAP).fill(1),
+      scout: data.scout || null,
     };
     for (const b of data.buildings) {
       const placed = this.placeBuilding(b.x, b.y, b.type, true);
@@ -117,10 +128,66 @@ const Game = {
     for (const b of this.state.buildings) h += BUILDINGS[b.type].happy || 0;
     h += Math.min(12, Math.floor(this.state.res.mobili / 4)); // case arredate
     if (this.state.res.pane > 1) h += 5;                      // profumo di pane
+    h += Math.min(10, Math.floor(this.state.res.idromele / 3)); // idromele in tavola
     const max = this.popMax();
     if (max > 0 && this.state.pop / max > 0.9) h -= 10; // sovraffollamento
     if (this.state.res.cibo <= 0 && this.state.res.pane <= 0) h -= 25;
     return Math.max(5, Math.min(100, h));
+  },
+
+  // ---------- esplorazione ----------
+  reveal(cx, cy, r) {
+    const s = this.state;
+    const N = CONFIG.MAP;
+    const r2 = r * r;
+    for (let y = Math.max(0, cy - r | 0); y <= Math.min(N - 1, cy + r | 0); y++) {
+      for (let x = Math.max(0, cx - r | 0); x <= Math.min(N - 1, cx + r | 0); x++) {
+        if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r2) s.explored[y * N + x] = 1;
+      }
+    }
+  },
+
+  isExplored(x, y) {
+    if (x < 0 || y < 0 || x >= CONFIG.MAP || y >= CONFIG.MAP) return false;
+    return !!this.state.explored[y * CONFIG.MAP + x];
+  },
+
+  sendScout(tx, ty) {
+    const s = this.state;
+    if (s.scout) { this.notify('🧭 L\'esploratore è già in viaggio'); return false; }
+    if (!this.canAfford(SCOUT.COST)) { this.notify('🚫 Servono 🍎' + SCOUT.COST.cibo + ' di provviste'); return false; }
+    this.pay(SCOUT.COST);
+    const c = CONFIG.MAP >> 1;
+    s.scout = { x: c, y: c, tx, ty, phase: 'andata' };
+    this.notify('🧭 L\'esploratore parte verso le terre ignote...');
+    return true;
+  },
+
+  tickScout() {
+    const s = this.state;
+    const sc = s.scout;
+    if (!sc) return;
+    const dest = sc.phase === 'andata'
+      ? { x: sc.tx, y: sc.ty }
+      : { x: CONFIG.MAP >> 1, y: CONFIG.MAP >> 1 };
+    const dx = dest.x - sc.x, dy = dest.y - sc.y;
+    const dist = Math.hypot(dx, dy);
+    const step = SCOUT.SPEED * CONFIG.TICK;
+    if (dist <= step) {
+      sc.x = dest.x; sc.y = dest.y;
+      this.reveal(sc.x, sc.y, SCOUT.REVEAL + 1);
+      if (sc.phase === 'andata') {
+        sc.phase = 'ritorno';
+        this.notify('🧭 Meta raggiunta! L\'esploratore torna a casa.');
+      } else {
+        s.scout = null;
+        this.notify('🧭 L\'esploratore è rientrato al borgo.');
+      }
+      return;
+    }
+    sc.x += dx / dist * step;
+    sc.y += dy / dist * step;
+    this.reveal(sc.x, sc.y, SCOUT.REVEAL);
   },
 
   // ---------- mestieri ----------
@@ -171,9 +238,14 @@ const Game = {
     if (def.unique && this.countType(type) > 0) return { ok: false, why: 'Già costruito' };
     const cell = s.grid[y * CONFIG.MAP + x];
     if (!cell) return { ok: false, why: 'Fuori mappa' };
+    if (!this.isExplored(x, y)) return { ok: false, why: 'Terra inesplorata: manda l\'esploratore' };
     if (cell.b) return { ok: false, why: 'Occupato' };
     if (cell.t === T.WATER) return { ok: false, why: "Non si costruisce sull'acqua" };
     if (cell.t === T.FOREST || cell.t === T.ROCK) return { ok: false, why: 'Terreno impervio' };
+    if (def.needAdj != null && !World.neighbors(x, y).some(i => s.grid[i].t === def.needAdj)) {
+      const names = { [T.WATER]: "l'acqua", [T.ROCK]: 'la roccia' };
+      return { ok: false, why: 'Serve ' + (names[def.needAdj] || 'il terreno giusto') + ' accanto' };
+    }
     for (const c of s.camps) {
       if (c.alive && Math.hypot(c.x - x, c.y - y) < 4) return { ok: false, why: 'Troppo vicino ai nemici' };
     }
@@ -196,6 +268,7 @@ const Game = {
     if (BUILDINGS[type].modes) b.mode = Object.keys(BUILDINGS[type].modes)[0];
     s.buildings.push(b);
     s.grid[y * CONFIG.MAP + x].b = type;
+    this.reveal(x, y, type === 'torre' ? SCOUT.TOWER_REVEAL : SCOUT.BUILD_REVEAL);
     return b;
   },
 
@@ -411,14 +484,28 @@ const Game = {
     const harvest = s.time < s.effects.raccoltoUntil ? 2 : 1;
     const xpGain = {};   // xp guadagnata dai mestieri in questo tick
 
+    // le scarpe del calzolaio velocizzano tutti i lavoratori (fino a +10%)
+    const shoeMult = 1 + 0.1 * Math.min(1, s.res.scarpe / Math.max(1, s.pop));
+    // la scuola accelera l'apprendimento dei mestieri
+    let xpMult = 1;
+    for (const b of s.buildings) xpMult += BUILDINGS[b.type].xpBoost || 0;
+    xpMult = Math.min(2, xpMult);
+
     for (const b of s.buildings) {
       const def = BUILDINGS[b.type];
-      let mult = eff;
+      let mult = eff * shoeMult;
       if (def.chain) mult *= this.profBonus(def.chain);   // esperienza del mestiere
       if (def.adjBonus) {
         const n = World.neighbors(b.x, b.y)
           .filter(i => s.grid[i].t === def.adjBonus.terrain).length;
         mult *= 1 + def.adjBonus.mult * n;
+      }
+      // un magazzino adiacente snellisce la logistica
+      if (World.neighbors(b.x, b.y).some(i => s.grid[i].b === 'magazzino')) mult *= 1.1;
+      // gli attrezzi del fabbro potenziano chi lavora (e si consumano piano)
+      if ((def.prod || def.conv || def.modes) && def.workers && s.res.attrezzi > 0.1) {
+        mult *= 1.15;
+        s.res.attrezzi = Math.max(0, s.res.attrezzi - 0.004 * CONFIG.TICK);
       }
 
       let worked = false;
@@ -437,15 +524,18 @@ const Game = {
         worked = true;
       }
 
-      // trasformazione (mulino, panificio, segheria, scalpellino, scultore, falegname)
+      // trasformazione, anche con più ingredienti (es. farina + acqua)
       const conv = def.conv || (def.modes && def.modes[b.mode]);
       if (conv) {
-        const inKey = Object.keys(conv.in)[0];
-        const want = conv.in[inKey] * eff * CONFIG.TICK;
-        const got = Math.min(want, s.res[inKey]);
-        if (got > 0.001) {
-          s.res[inKey] -= got;
-          const ratio = got / (conv.in[inKey] * CONFIG.TICK || 1);
+        let ratio = 1;   // limitata dall'ingrediente più scarso
+        for (const k in conv.in) {
+          const want = conv.in[k] * eff * CONFIG.TICK;
+          ratio = Math.min(ratio, want > 0 ? Math.min(1, s.res[k] / want) : 1);
+        }
+        if (ratio > 0.003) {
+          for (const k in conv.in) {
+            s.res[k] = Math.max(0, s.res[k] - conv.in[k] * eff * ratio * CONFIG.TICK);
+          }
           for (const k in conv.out) {
             s.res[k] += conv.out[k] * mult * ratio * CONFIG.TICK;
           }
@@ -455,10 +545,13 @@ const Game = {
 
       // il lavoro insegna: xp per la catena del mestiere
       if (worked && def.chain) {
-        xpGain[def.chain] = (xpGain[def.chain] || 0) + eff * CONFIG.TICK;
+        xpGain[def.chain] = (xpGain[def.chain] || 0) + eff * xpMult * CONFIG.TICK;
       }
     }
     for (const p in xpGain) this.addProfXp(p, xpGain[p]);
+
+    // esploratore in viaggio
+    this.tickScout();
 
     // consumo: prima il pane (nutre x3), poi il grano
     let need = (s.pop * 0.1 + s.soldati * 0.15) * CONFIG.TICK;

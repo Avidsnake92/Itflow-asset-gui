@@ -106,6 +106,10 @@ const Sprites = {
         if ((x * 2 + y + f * 3) % 17 === 0) return '#4d8ab5';
         return y > 11 ? '#376f9c' : '#3f7fae';
       }
+      case 5: // nebbia di guerra: terre ignote
+        if (n > 0.9) return '#39423c';
+        if (n < 0.12) return '#272e29';
+        return n < 0.5 ? '#2f3833' : '#2c342f';
     }
     return '#000';
   },
@@ -186,6 +190,42 @@ const Sprites = {
       } else {
         P.r(3, 7, 1, 3, PAL.beam); P.r(4, 7, 1, 2, PAL.beam);
       }
+    });
+  },
+
+  // ---------- esploratore col cappello piumato ----------
+  scout(frame) {
+    const key = 'scout' + frame;
+    return this._mk(key, 8, 13, 4, 12, (P) => {
+      P.px(3, 0, '#c0392b');                          // piuma
+      P.r(2, 1, 4, 1, '#4e7c3a');                     // cappello
+      P.r(3, 2, 2, 2, '#e8c39a');                     // viso
+      P.r(2, 4, 4, 4, '#7a5a34');                     // giubba di cuoio
+      P.px(1, 5, '#e8c39a'); P.px(6, 5, '#e8c39a');
+      P.col(7, 2, 8, PAL.beam);                       // bastone da viaggio
+      if (frame === 0) {
+        P.r(2, 8, 1, 3, PAL.beam); P.r(5, 8, 1, 3, PAL.beam);
+      } else {
+        P.r(3, 8, 1, 3, PAL.beam); P.r(4, 8, 1, 2, PAL.beam);
+      }
+    });
+  },
+
+  // ---------- mucca (2 frame) ----------
+  cow(frame) {
+    const key = 'cow' + frame;
+    return this._mk(key, 14, 10, 7, 9, (P) => {
+      P.r(2, 3, 9, 4, '#8a5a32');                     // corpo
+      P.r(4, 3, 3, 3, '#e8dcc8');                     // macchia
+      P.r(10, 2, 3, 3, '#6b4424');                    // testa
+      P.px(10, 1, '#e8dcc8'); P.px(12, 1, '#e8dcc8'); // corna
+      P.px(13, 4, '#4a3522');                         // muso
+      if (frame === 0) {
+        P.px(3, 7, '#4a3522'); P.px(9, 7, '#4a3522');
+      } else {
+        P.px(4, 7, '#4a3522'); P.px(8, 7, '#4a3522');
+      }
+      P.px(2, 8, '#4a3522'); P.px(10, 8, '#4a3522');
     });
   },
 
@@ -408,6 +448,178 @@ const Sprites = {
       P.r(cx - 11, by - 13, 21, 1, PAL.wood);
       // piccone
       P.px(cx + 6, by - 2, PAL.stoneL); P.col(cx + 6, by - 1, by, PAL.wood);
+    },
+
+    pozzo(P, cx, by, n) {
+      // vera stella dei villaggi di Cultures: pozzo col tettuccio
+      for (let x = cx - 5; x <= cx + 4; x++) {
+        P.col(x, by - 4, by, (x + cx) % 3 ? PAL.stone : PAL.stoneD);
+      }
+      P.r(cx - 5, by - 5, 10, 1, PAL.stoneL);
+      P.r(cx - 3, by - 5, 6, 1, '#2c4a66');          // acqua scura dentro
+      P.col(cx - 6, by - 13, by - 2, PAL.beam);
+      P.col(cx + 5, by - 13, by - 2, PAL.beam);
+      // tettuccio di paglia
+      for (let i = 0; i < 9; i++) {
+        const w = 9 - i;
+        P.r(cx - w, by - 14 - i + 5, w * 2, 1, i % 2 ? PAL.goldR : PAL.goldRD);
+      }
+      // carrucola e secchio
+      P.col(cx, by - 12, by - 9, '#6b4424');
+      P.r(cx - 1, by - 9, 3, 2, PAL.wood);
+    },
+
+    pescatore(P, cx, by, n) {
+      this._hut(P, {
+        cx: cx - 3, by: by - 3, w: 5, h: 6, roofH: 4,
+        wallL: PAL.woodD, wallR: PAL.wood,
+        roofL: PAL.goldRD, roofR: PAL.goldR, edge: PAL.goldRL,
+      });
+      this._door(P, cx - 3, by - 3, 3, 4);
+      // molo di assi
+      for (let i = 0; i < 4; i++) P.r(cx + 2 + i * 2, by - 2 + (i >> 1), 2, 1, PAL.woodL);
+      P.col(cx + 3, by - 1, by + 1, PAL.beam);
+      P.col(cx + 8, by, by + 1, PAL.beam);
+      // canna da pesca
+      P.col(cx + 9, by - 8, by - 3, PAL.beam);
+      P.px(cx + 10, by - 7, PAL.cream);
+      // pesce steso
+      P.px(cx - 8, by - 1, '#77879f'); P.px(cx - 7, by - 1, '#8fa0b8');
+    },
+
+    apiario(P, cx, by, n) {
+      // arnie a cupola dorata come in Cultures
+      const hive = (hx, hb, r) => {
+        const rows = [r - 2, r, r + 1, r + 1, r];
+        rows.forEach((w, i) => {
+          P.r(hx - (w >> 1), hb - rows.length + i, w, 1, i % 2 ? PAL.goldRD : PAL.goldR);
+        });
+        P.px(hx, hb - 1, PAL.outline);   // ingresso api
+        P.px(hx - (r >> 1), hb - rows.length, PAL.goldRL);
+      };
+      hive(cx - 6, by - 1, 7);
+      hive(cx + 5, by - 3, 6);
+      hive(cx + 1, by + 1, 5);
+      // apine
+      P.px(cx - 2, by - 9, PAL.gold); P.px(cx + 8, by - 8, PAL.gold);
+      P.px(cx + 3, by - 11, PAL.gold);
+    },
+
+    birrificio(P, cx, by, n) {
+      this._hut(P, {
+        cx: cx + 2, by, w: 7, h: 8, roofH: 5,
+        roofL: PAL.woodD, roofR: PAL.wood, edge: PAL.woodL,
+      });
+      this._door(P, cx + 2, by, 3, 5);
+      this._win(P, cx + 5, by - 8, n);
+      // bottone gigante
+      P.r(cx - 10, by - 7, 6, 7, PAL.wood);
+      P.r(cx - 10, by - 5, 6, 1, PAL.woodD);
+      P.r(cx - 10, by - 3, 6, 1, PAL.woodD);
+      P.r(cx - 9, by - 8, 4, 1, PAL.woodL);
+      // boccale insegna
+      P.r(cx + 9, by - 10, 3, 3, PAL.gold);
+      P.px(cx + 9, by - 11, PAL.cream);
+    },
+
+    allevamento(P, cx, by, n) {
+      // staccionata
+      for (let i = 0; i < 6; i++) {
+        P.col(cx - 12 + i * 5, by - 3 - (i >> 1), by - (i >> 1), PAL.beam);
+      }
+      P.r(cx - 12, by - 3, 25, 1, PAL.wood);
+      P.r(cx - 12, by - 1, 25, 1, PAL.wood);
+      // mucca al pascolo
+      P.r(cx - 4, by - 7, 8, 3, '#8a5a32');
+      P.r(cx - 2, by - 7, 3, 2, '#e8dcc8');
+      P.r(cx + 3, by - 8, 2, 2, '#6b4424');
+      P.px(cx - 3, by - 4, '#4a3522'); P.px(cx + 2, by - 4, '#4a3522');
+      // mangiatoia
+      P.r(cx - 11, by - 6, 5, 2, PAL.woodD);
+      P.r(cx - 10, by - 7, 3, 1, PAL.goldR);
+    },
+
+    calzolaio(P, cx, by, n) {
+      this._hut(P, { cx, by, w: 6, h: 7, roofH: 5 });
+      this._beams(P, cx, by, 6, 7);
+      this._door(P, cx, by, 3, 4);
+      this._win(P, cx + 3, by - 7, n);
+      // insegna: stivale
+      P.r(cx - 8, by - 10, 2, 3, '#6b4424');
+      P.r(cx - 8, by - 8, 4, 2, '#6b4424');
+      P.px(cx - 8, by - 10, PAL.woodL);
+    },
+
+    miniera(P, cx, by, n) {
+      // collina di roccia
+      const rows = [8, 14, 18, 22, 24];
+      rows.forEach((w, i) => {
+        for (let x = cx - (w >> 1); x < cx + (w >> 1); x++) {
+          const nn = pr(x, i, 13);
+          P.px(x, by - rows.length + i, nn < 0.2 ? PAL.stoneD : (nn > 0.85 ? PAL.stoneL : PAL.stone));
+        }
+      });
+      // ingresso con travi di sostegno
+      P.r(cx - 2, by - 4, 5, 5, '#1d1812');
+      P.col(cx - 3, by - 5, by, PAL.beam);
+      P.col(cx + 3, by - 5, by, PAL.beam);
+      P.r(cx - 3, by - 6, 7, 1, PAL.wood);
+      // carriola di ferro
+      P.r(cx + 6, by - 2, 4, 2, PAL.woodD);
+      P.px(cx + 7, by - 3, '#8fa0b8'); P.px(cx + 8, by - 3, '#8fa0b8');
+    },
+
+    fabbro(P, cx, by, n) {
+      this._hut(P, {
+        cx, by, w: 7, h: 8, roofH: 5,
+        wallL: PAL.stoneD, wallR: PAL.stone,
+        roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL,
+      });
+      this._door(P, cx, by, 4, 5);
+      // bagliore della forgia dalla porta
+      P.px(cx - 1, by - 1, PAL.fire); P.px(cx, by - 1, PAL.fireY); P.px(cx + 1, by - 1, PAL.fire);
+      // incudine fuori
+      P.r(cx - 9, by - 4, 5, 1, '#4a4a4a');
+      P.r(cx - 8, by - 3, 3, 1, '#5c5c5c');
+      P.r(cx - 8, by - 2, 3, 2, '#4a4a4a');
+      // comignolo fumante
+      P.r(cx + 4, by - 15, 2, 5, PAL.stoneD);
+      P.px(cx + 4, by - 16, PAL.fire);
+      this._win(P, cx - 5, by - 8, n);
+    },
+
+    scuola(P, cx, by, n) {
+      const { apexY } = this._hut(P, {
+        cx, by, w: 8, h: 10, roofH: 6,
+        roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL,
+      });
+      this._beams(P, cx, by, 8, 10);
+      this._door(P, cx, by, 3, 5);
+      this._win(P, cx - 5, by - 9, n, 2, 3);
+      this._win(P, cx + 3, by - 10, n, 2, 3);
+      this._win(P, cx - 3, by - 6, n); this._win(P, cx + 1, by - 7, n);
+      // campanella sul tetto
+      P.r(cx - 1, apexY - 4, 3, 2, PAL.beam);
+      P.px(cx, apexY - 2, PAL.gold);
+      // libro insegna
+      P.r(cx + 8, by - 9, 4, 3, PAL.cream);
+      P.col(cx + 9, by - 9, by - 7, PAL.red);
+    },
+
+    magazzino(P, cx, by, n) {
+      this._hut(P, {
+        cx, by, w: 10, h: 8, roofH: 6,
+        wallL: PAL.woodD, wallR: PAL.wood,
+        roofL: PAL.woodD, roofR: PAL.woodL, edge: PAL.woodL,
+      });
+      // portone largo
+      P.r(cx - 3, by - 6, 7, 7, PAL.door);
+      P.r(cx - 3, by - 6, 7, 1, PAL.beam);
+      P.col(cx, by - 5, by, PAL.beam);
+      // casse e sacchi fuori
+      P.r(cx - 12, by - 3, 4, 3, PAL.wood); P.r(cx - 12, by - 3, 4, 1, PAL.woodL);
+      P.r(cx + 8, by - 2, 3, 2, PAL.goldRD);
+      P.px(cx + 9, by - 3, PAL.goldRD);
     },
 
     // --- catena del contadino ---

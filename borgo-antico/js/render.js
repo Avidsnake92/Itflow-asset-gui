@@ -153,6 +153,15 @@ const Renderer = {
         const p = this.worldToScreen(wp.x, wp.y);
         if (p.x < -W2 * 2 || p.x > this.w + W2 * 2 || p.y < -H2 * 6 || p.y > this.h + H2 * 3) continue;
 
+        // terre inesplorate: nebbia di guerra
+        if (!s.explored[y * N + x]) {
+          const fog = Sprites.terrain(5, (cell.deco * 3) | 0, 0);
+          ctx.drawImage(fog,
+            Math.round(p.x - W2) - 1, Math.round(p.y - H2),
+            Math.round(W2 * 2) + 2, Math.round(H2 * 2) + 1);
+          continue;
+        }
+
         this.drawTile(ctx, p.x, p.y, W2, H2, cell, night);
 
         // selezione
@@ -242,6 +251,7 @@ const Renderer = {
     const z = this.cam.zoom;
     for (const camp of s.camps) {
       if (!camp.alive) continue;
+      if (!Game.isExplored(camp.x, camp.y)) continue;   // nascosto nella nebbia
       const wp = this.tileToWorld(camp.x, camp.y);
       const p = this.worldToScreen(wp.x, wp.y);
       if (p.x < -80 || p.x > this.w + 80 || p.y < -80 || p.y > this.h + 80) continue;
@@ -301,6 +311,7 @@ const Renderer = {
       const ty = Math.round(nearY + (Math.random() - 0.5) * radius * 2);
       if (tx < 1 || ty < 1 || tx >= N - 1 || ty >= N - 1) continue;
       const cell = s.grid[ty * N + tx];
+      if (!s.explored[ty * N + tx]) continue;
       if ((cell.t === T.GRASS || cell.t === T.FERTILE) && !cell.b) {
         const p = this.tileToWorld(tx, ty);
         return { x: p.x + (Math.random() - 0.5) * 20, y: p.y + (Math.random() - 0.5) * 10, tx, ty };
@@ -339,18 +350,25 @@ const Renderer = {
         w.target = null;
         w.pause = 1 + Math.random() * 4;
       } else {
-        w.x += dx / dist * w.speed * dt;
-        w.y += dy / dist * w.speed * dt;
+        // le scarpe del calzolaio mettono le ali ai piedi
+        const boost = 1 + 0.3 * Math.min(1, s.res.scarpe / Math.max(1, s.pop));
+        w.x += dx / dist * w.speed * boost * dt;
+        w.y += dy / dist * w.speed * boost * dt;
         w.dir = dx >= 0 ? 1 : -1;
       }
     }
 
-    // pecorelle al pascolo attorno al borgo
-    const wantSheep = bl.length >= 3 ? 5 : 0;
+    // pecorelle (e mucche, se c'è un allevamento) al pascolo
+    const hasCows = Game.countType('allevamento') > 0;
+    const wantSheep = bl.length >= 3 ? (hasCows ? 7 : 5) : 0;
     if (this.flock.length < wantSheep && Math.random() < dt * 0.5) {
       const home = bl[(Math.random() * bl.length) | 0];
       const spot = this._grassSpot(home.x, home.y, 5);
-      if (spot) this.flock.push({ x: spot.x, y: spot.y, tx: spot.tx, ty: spot.ty, target: null, pause: Math.random() * 3 });
+      if (spot) this.flock.push({
+        x: spot.x, y: spot.y, tx: spot.tx, ty: spot.ty, target: null,
+        pause: Math.random() * 3,
+        kind: hasCows && Math.random() < 0.4 ? 'cow' : 'sheep',
+      });
     }
     if (this.flock.length > wantSheep) this.flock.length = wantSheep;
 
@@ -380,12 +398,31 @@ const Renderer = {
     for (const sh of this.flock) {
       const p = this.worldToScreen(sh.x, sh.y);
       if (p.x < -20 || p.x > this.w + 20 || p.y < -20 || p.y > this.h + 20) continue;
-      this.sprite(ctx, Sprites.sheep(sh.target ? frame : 0), p.x, p.y, 1.6 * z);
+      const spr = sh.kind === 'cow' ? Sprites.cow(sh.target ? frame : 0) : Sprites.sheep(sh.target ? frame : 0);
+      this.sprite(ctx, spr, p.x, p.y, 1.6 * z);
     }
     for (const w of this.walkers) {
       const p = this.worldToScreen(w.x, w.y);
       if (p.x < -20 || p.x > this.w + 20 || p.y < -20 || p.y > this.h + 20) continue;
       this.sprite(ctx, Sprites.villager(w.color, w.target && w.pause <= 0 ? frame : 0), p.x, p.y, 1.6 * z);
+    }
+
+    // esploratore in viaggio con il suo segnaposto
+    const sc = Game.state.scout;
+    if (sc) {
+      const wp = this.tileToWorld(sc.x, sc.y);
+      const p = this.worldToScreen(wp.x, wp.y);
+      this.sprite(ctx, Sprites.scout(frame), p.x, p.y, 1.8 * z);
+      if (sc.phase === 'andata') {
+        const tw = this.tileToWorld(sc.tx, sc.ty);
+        const tp = this.worldToScreen(tw.x, tw.y);
+        const pulse = 8 + Math.sin(this.time * 4) * 3;
+        ctx.strokeStyle = 'rgba(255, 233, 176, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(tp.x, tp.y, pulse * z, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
   },
 

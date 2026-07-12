@@ -20,6 +20,18 @@ const T = { GRASS: 0, FERTILE: 1, FOREST: 2, ROCK: 3, WATER: 4 };
 const RES_EMOJI = {
   legna: '🪵', pietra: '🪨', cibo: '🍎', oro: '💰', fede: '✨',
   farina: '🌾', pane: '🍞', assi: '🪚', mobili: '🪑', armi: '🏹', blocchi: '🧱',
+  acqua: '💧', miele: '🍯', idromele: '🍻', pelle: '🐮', scarpe: '👞',
+  ferro: '🔩', attrezzi: '🔨',
+};
+
+// Esplorazione (nebbia di guerra)
+const SCOUT = {
+  COST: { cibo: 15 },
+  SPEED: 1.4,        // tile al secondo
+  REVEAL: 2.6,       // raggio di rivelazione lungo il cammino
+  BUILD_REVEAL: 5,   // raggio rivelato da un nuovo edificio
+  TOWER_REVEAL: 8,   // le torri vedono lontano
+  START_REVEAL: 8,   // area iniziale attorno al municipio
 };
 
 // ---- Ere (si resta nel medioevo!) ----
@@ -96,8 +108,8 @@ const BUILDINGS = {
   },
   panificio: {
     name: 'Panificio', emoji: '🥖', era: 2, cost: { legna: 50, pietra: 30, oro: 10 },
-    desc: 'Sforna pane: nutre 3 volte più del grano.',
-    conv: { in: { farina: 0.25 }, out: { pane: 0.18 } }, workers: 2, happy: 2,
+    desc: 'Farina + acqua = pane, che nutre 3 volte più del grano.',
+    conv: { in: { farina: 0.25, acqua: 0.15 }, out: { pane: 0.18 } }, workers: 2, happy: 2,
     chain: 'contadino', needProf: ['contadino', 3],
   },
   // --- catena del boscaiolo ---
@@ -128,6 +140,66 @@ const BUILDINGS = {
     desc: 'Scolpisce i blocchi in opere vendute a caro prezzo.',
     conv: { in: { blocchi: 0.12 }, out: { oro: 0.35 } }, workers: 1, happy: 3,
     chain: 'cavatore', needProf: ['cavatore', 3],
+  },
+  // --- acqua, cibo e allevamento ---
+  pozzo: {
+    name: 'Pozzo', emoji: '⛲', era: 0, cost: { legna: 15, pietra: 5 },
+    desc: 'Attinge acqua per panificio e birrificio.',
+    prod: { acqua: 0.3 }, workers: 1,
+  },
+  pescatore: {
+    name: 'Pescatore', emoji: '🎣', era: 1, cost: { legna: 35 },
+    desc: 'Pesca cibo. Costruiscilo in riva all\'acqua.',
+    prod: { cibo: 0.6 }, workers: 1, needAdj: T.WATER,
+    chain: 'contadino',
+  },
+  apiario: {
+    name: 'Apiario', emoji: '🐝', era: 1, cost: { legna: 30 },
+    desc: 'Le api producono miele profumato.',
+    prod: { miele: 0.12 }, workers: 1, chain: 'contadino',
+  },
+  birrificio: {
+    name: 'Birrificio', emoji: '🍻', era: 2, cost: { legna: 60, pietra: 20, oro: 15 },
+    desc: 'Miele + acqua = idromele: il borgo festeggia!',
+    conv: { in: { miele: 0.1, acqua: 0.1 }, out: { idromele: 0.08 } }, workers: 1,
+    chain: 'contadino',
+  },
+  allevamento: {
+    name: 'Allevamento', emoji: '🐄', era: 2, cost: { legna: 70, oro: 10 },
+    desc: 'Mucche al pascolo: carne e pelli.',
+    prod: { cibo: 0.4, pelle: 0.06 }, workers: 2, chain: 'contadino',
+  },
+  calzolaio: {
+    name: 'Calzolaio', emoji: '👞', era: 2, cost: { legna: 45, assi: 10, oro: 10 },
+    desc: 'Pelle → scarpe: i lavoratori si muovono più svelti.',
+    conv: { in: { pelle: 0.08 }, out: { scarpe: 0.06 } }, workers: 1,
+    chain: 'boscaiolo',
+  },
+  // --- ferro e forgia ---
+  miniera: {
+    name: 'Miniera di ferro', emoji: '⛏️', era: 2, cost: { legna: 50, pietra: 30 },
+    desc: 'Scava il ferro dalla roccia viva.',
+    prod: { ferro: 0.15 }, workers: 2, needAdj: T.ROCK,
+    chain: 'cavatore', needProf: ['cavatore', 2],
+  },
+  fabbro: {
+    name: 'Fabbro', emoji: '⚒️', era: 3, cost: { legna: 60, pietra: 60, oro: 30 },
+    desc: 'Forgia il ferro: armi migliori o attrezzi per tutti.',
+    workers: 2, chain: 'cavatore', needProf: ['cavatore', 3],
+    modes: {
+      armi: { in: { ferro: 0.12, legna: 0.05 }, out: { armi: 0.18 } },
+      attrezzi: { in: { ferro: 0.1 }, out: { attrezzi: 0.1 } },
+    },
+  },
+  // --- sapere e logistica ---
+  scuola: {
+    name: 'Scuola', emoji: '📖', era: 2, cost: { legna: 80, pietra: 40, blocchi: 10, oro: 25 },
+    desc: 'I mestieri imparano il 50% più in fretta.',
+    workers: 1, xpBoost: 0.5,
+  },
+  magazzino: {
+    name: 'Magazzino', emoji: '🏬', era: 1, cost: { legna: 50 },
+    desc: '+10% ai produttori adiacenti (logistica).',
   },
   // --- altri ---
   cappella: {

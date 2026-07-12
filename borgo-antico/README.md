@@ -13,7 +13,9 @@ Un city builder medievale **rilassante** per iPhone, ispirato a *Civitas Nordica
   - 🌾 Contadino: grano → **Mulino** (farina) → **Panificio** (pane, nutre ×3)
   - 🪓 Boscaiolo: legna → **Segheria** (assi) → **Falegname** (mobili per la felicità o archi per i soldati, a tua scelta)
   - ⛏️ Cavatore: pietra → **Scalpellino** (blocchi da costruzione) → **Scultore** (opere vendute a caro prezzo)
-- 🚶 **Vita nel borgo**: villici che passeggiano tra gli edifici e pecorelle al pascolo
+- 🚶 **Vita nel borgo**: villici che passeggiano tra gli edifici, pecore e mucche al pascolo
+- 🧭 **Nebbia di guerra ed esplorazione**: la mappa parte ignota; manda l'esploratore a scoprire il territorio (e i nascondigli dei nemici). Edifici e torri diradano la nebbia
+- 💧 **Economia profonda** (dalla guida di Cultures): il pozzo dà l'acqua per panificio e birrificio; pescatore, apiario→miele→idromele (felicità), allevamento→pelle→calzolaio→scarpe (lavoratori più veloci), miniera→ferro→fabbro (armi migliori o attrezzi che potenziano tutti), scuola (+50% esperienza) e magazzino (logistica: +10% ai vicini)
 - 👑 **Evoluzione della civiltà** in 5 ere, tutte medievali: Accampamento → Villaggio → Borgo → Città Medievale → Regno
 - 🙏 **Miracoli divini** (stile Black & White): benedici i raccolti, invoca la pioggia, proteggi il borgo con uno scudo divino o scaglia fulmini sui nemici — tutto alimentato dalla **Fede** generata da cappelle e chiese
 - ⚔️ **Accampamenti nemici** ai confini: crescono lentamente, ogni tanto tentano una razzia (con largo preavviso). Difenditi con torri e soldati, oppure attaccali e saccheggiali. Se perdi una razzia perdi solo qualche scorta: **non si può mai perdere davvero**

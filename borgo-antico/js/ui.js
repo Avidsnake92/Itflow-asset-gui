@@ -209,6 +209,7 @@ const UI = {
     const armed = Game.armedSoldiers();
     html += `<div class="kv"><span>⚔️ Soldati</span><b>${s.soldati} / ${Game.soldierCap()}${armed ? ` (🏹${armed} armati)` : ''}</b></div>`;
     html += `<button class="wide-btn" id="btn-recruit">⚔️ Recluta soldato (🍎${SOLDIER_COST.cibo} 💰${SOLDIER_COST.oro})</button>`;
+    html += `<button class="wide-btn" id="btn-scout" ${s.scout ? 'disabled' : ''}>🧭 ${s.scout ? 'Esploratore in viaggio...' : 'Invia esploratore (🍎' + SCOUT.COST.cibo + ')'}</button>`;
 
     const alive = s.camps.filter(c => c.alive);
     html += `<p class="muted" style="margin-top:8px">🏴 Accampamenti nemici attivi: ${alive.length}` +
@@ -218,6 +219,12 @@ const UI = {
     const eraBtn = this.$('btn-era');
     if (eraBtn) eraBtn.onclick = () => { Game.upgradeEra(); this.renderKingdom(); };
     this.$('btn-recruit').onclick = () => { Game.recruit(); this.renderKingdom(); };
+    const scoutBtn = this.$('btn-scout');
+    if (scoutBtn && !Game.state.scout) scoutBtn.onclick = () => {
+      this.targeting = 'scout';
+      this.closePanels();
+      this.toast('🧭 Tocca il punto della mappa da esplorare (anche nella nebbia)');
+    };
   },
 
   // ---------- tap sulla mappa ----------
@@ -225,6 +232,13 @@ const UI = {
     const s = Game.state;
     if (!s) return;
     const N = CONFIG.MAP;
+
+    // destinazione dell'esploratore
+    if (this.targeting === 'scout') {
+      if (x < 0 || y < 0 || x >= N || y >= N) { this.toast('🧭 Tocca un punto dentro la mappa'); return; }
+      if (Game.sendScout(x, y)) this.targeting = null;
+      return;
+    }
 
     // bersaglio miracolo
     if (this.targeting) {
@@ -262,7 +276,8 @@ const UI = {
   },
 
   campNear(x, y) {
-    return Game.state.camps.find(c => c.alive && Math.hypot(c.x - x, c.y - y) <= 2) || null;
+    return Game.state.camps.find(c =>
+      c.alive && Game.isExplored(c.x, c.y) && Math.hypot(c.x - x, c.y - y) <= 2) || null;
   },
 
   showBuildingPanel(x, y, type) {
@@ -372,7 +387,8 @@ const UI = {
     set('res-soldati', s.soldati);
 
     // merci lavorate: chip visibili solo quando ne possiedi
-    const goods = ['farina', 'pane', 'assi', 'blocchi', 'mobili', 'armi'];
+    const goods = ['farina', 'pane', 'assi', 'blocchi', 'mobili', 'armi',
+      'acqua', 'miele', 'idromele', 'pelle', 'scarpe', 'ferro', 'attrezzi'];
     const bar2 = this.$('topbar2');
     for (const g of goods) {
       let chip = document.getElementById('res-' + g);
