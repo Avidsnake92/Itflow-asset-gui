@@ -24,6 +24,7 @@ const Game = {
         legna: 80, pietra: 30, cibo: 60, oro: 20, fede: 0,
         farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
         acqua: 0, miele: 0, idromele: 0, pelle: 0, scarpe: 0, ferro: 0, attrezzi: 0,
+        torta: 0,
       },
       prof: { contadino: 0, boscaiolo: 0, cavatore: 0 },
       pop: 5,
@@ -75,6 +76,7 @@ const Game = {
         legna: 0, pietra: 0, cibo: 0, oro: 0, fede: 0,
         farina: 0, pane: 0, assi: 0, mobili: 0, armi: 0, blocchi: 0,
         acqua: 0, miele: 0, idromele: 0, pelle: 0, scarpe: 0, ferro: 0, attrezzi: 0,
+        torta: 0,
       }, data.res),
       prof: Object.assign({ contadino: 0, boscaiolo: 0, cavatore: 0 }, data.prof),
       pop: data.pop, soldati: data.soldati, era: data.era,
@@ -129,6 +131,7 @@ const Game = {
     h += Math.min(12, Math.floor(this.state.res.mobili / 4)); // case arredate
     if (this.state.res.pane > 1) h += 5;                      // profumo di pane
     h += Math.min(10, Math.floor(this.state.res.idromele / 3)); // idromele in tavola
+    if (this.state.res.torta > 1) h += 8;                       // dolci per tutti!
     const max = this.popMax();
     if (max > 0 && this.state.pop / max > 0.9) h -= 10; // sovraffollamento
     if (this.state.res.cibo <= 0 && this.state.res.pane <= 0) h -= 25;
@@ -553,8 +556,12 @@ const Game = {
     // esploratore in viaggio
     this.tickScout();
 
-    // consumo: prima il pane (nutre x3), poi il grano
+    // consumo: il cibo migliore prima, come in Cultures
+    // (torta nutre x5, pane x3, poi il grano)
     let need = (s.pop * 0.1 + s.soldati * 0.15) * CONFIG.TICK;
+    const tortaEaten = Math.min(s.res.torta, need / 5);
+    s.res.torta -= tortaEaten;
+    need -= tortaEaten * 5;
     const paneEaten = Math.min(s.res.pane, need / 3);
     s.res.pane -= paneEaten;
     need -= paneEaten * 3;
@@ -562,10 +569,10 @@ const Game = {
 
     // crescita popolazione
     const max = this.popMax();
-    const fed = s.res.cibo > 5 || s.res.pane > 2;
+    const fed = s.res.cibo > 5 || s.res.pane > 2 || s.res.torta > 1;
     if (fed && s.pop < max) {
       s.pop += 0.02 * (this.happiness() / 50) * CONFIG.TICK;
-    } else if (s.res.cibo <= 0 && s.res.pane <= 0 && s.pop > 3) {
+    } else if (s.res.cibo <= 0 && s.res.pane <= 0 && s.res.torta <= 0 && s.pop > 3) {
       s.pop -= 0.01 * CONFIG.TICK; // declino dolce, mai catastrofico
     }
     s.pop = Math.min(s.pop, max);

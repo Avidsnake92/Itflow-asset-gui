@@ -193,6 +193,62 @@ const Sprites = {
     });
   },
 
+  // ---------- lavoratore all'opera (attrezzo alzato/abbassato) ----------
+  worker(tool, frame) {
+    const key = `wrk${tool}f${frame}`;
+    return this._mk(key, 12, 13, 6, 12, (P) => {
+      // corpo
+      P.px(4, 1, '#6b4424'); P.px(5, 1, '#6b4424');
+      P.r(4, 2, 2, 2, '#e8c39a');
+      P.r(3, 4, 4, 4, tool === 'hammer' ? '#5c5c5c' : '#8a5a32');
+      P.r(3, 8, 1, 3, PAL.beam); P.r(6, 8, 1, 3, PAL.beam);
+      const up = frame === 0;
+      if (tool === 'axe') {
+        // ascia: alzata sopra la testa / abbattuta davanti
+        if (up) {
+          P.col(7, 0, 4, PAL.wood);
+          P.r(7, 0, 3, 2, PAL.stoneL);
+        } else {
+          P.r(7, 5, 4, 1, PAL.wood);
+          P.r(10, 4, 2, 3, PAL.stoneL);
+        }
+      } else if (tool === 'hoe') {
+        // zappa: in alto / conficcata a terra
+        if (up) {
+          P.col(8, 1, 5, PAL.wood);
+          P.r(7, 0, 3, 1, '#5c5c5c');
+        } else {
+          P.col(8, 5, 9, PAL.wood);
+          P.r(8, 10, 3, 1, '#5c5c5c');
+        }
+      } else if (tool === 'pick') {
+        // piccone
+        if (up) {
+          P.col(8, 0, 4, PAL.wood);
+          P.r(6, 0, 5, 1, PAL.stoneD);
+        } else {
+          P.r(7, 6, 4, 1, PAL.wood);
+          P.col(11, 5, 8, PAL.stoneD);
+        }
+      } else if (tool === 'hammer') {
+        // martello da fabbro
+        if (up) {
+          P.col(8, 1, 4, PAL.wood);
+          P.r(7, 0, 3, 2, '#8fa0b8');
+        } else {
+          P.r(8, 6, 3, 1, PAL.wood);
+          P.r(10, 5, 2, 3, '#8fa0b8');
+        }
+      } else if (tool === 'saw') {
+        // sega avanti e indietro
+        const ox = up ? 0 : 2;
+        P.r(7 + ox, 5, 4, 1, '#8fa0b8');
+        for (let i = 0; i < 4; i++) P.px(7 + ox + i, 6, '#77879f');
+        P.px(7 + ox - 1, 5, PAL.wood);
+      }
+    });
+  },
+
   // ---------- esploratore col cappello piumato ----------
   scout(frame) {
     const key = 'scout' + frame;
@@ -642,6 +698,23 @@ const Sprites = {
       // forno con comignolo
       P.r(cx + 6, by - 13, 2, 5, PAL.stoneD);
       P.px(cx + 6, by - 14, PAL.outline); P.px(cx + 7, by - 14, PAL.outline);
+    },
+
+    pasticceria(P, cx, by, n) {
+      this._hut(P, {
+        cx, by, w: 7, h: 8, roofH: 5,
+        roofL: PAL.slateD, roofR: PAL.slate, edge: PAL.slateL,
+      });
+      this._beams(P, cx, by, 7, 8);
+      this._door(P, cx, by, 3, 5);
+      this._win(P, cx + 4, by - 8, n);
+      // insegna: torta a piani rosa
+      P.r(cx - 8, by - 8, 4, 2, '#e8a0b4');
+      P.r(cx - 7, by - 10, 2, 2, '#f0c8d4');
+      P.px(cx - 6, by - 11, PAL.gold);
+      // comignolo del forno
+      P.r(cx + 5, by - 14, 2, 5, PAL.stoneD);
+      P.px(cx + 5, by - 15, PAL.outline); P.px(cx + 6, by - 15, PAL.outline);
     },
 
     // --- catena del boscaiolo ---

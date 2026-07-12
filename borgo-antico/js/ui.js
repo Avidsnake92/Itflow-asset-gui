@@ -387,7 +387,7 @@ const UI = {
     set('res-soldati', s.soldati);
 
     // merci lavorate: chip visibili solo quando ne possiedi
-    const goods = ['farina', 'pane', 'assi', 'blocchi', 'mobili', 'armi',
+    const goods = ['farina', 'pane', 'torta', 'assi', 'blocchi', 'mobili', 'armi',
       'acqua', 'miele', 'idromele', 'pelle', 'scarpe', 'ferro', 'attrezzi'];
     const bar2 = this.$('topbar2');
     for (const g of goods) {

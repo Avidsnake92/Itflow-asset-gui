@@ -111,11 +111,29 @@ const Renderer = {
 
     // fumo dai camini ogni tanto
     if (Math.random() < dt * 1.5) {
-      const houses = s.buildings.filter(b => b.type === 'casa' || b.type === 'taverna');
+      const houses = s.buildings.filter(b =>
+        b.type === 'casa' || b.type === 'taverna' || b.type === 'panificio' ||
+        b.type === 'fabbro' || b.type === 'pasticceria');
       if (houses.length) {
         const h = houses[(Math.random() * houses.length) | 0];
         const p = this.tileToWorld(h.x, h.y);
         this.addSmoke(p.x, p.y);
+      }
+    }
+
+    // trucioli e scintille dai cantieri al lavoro
+    if (Math.random() < dt * 2 && s.pop >= 2) {
+      const working = s.buildings.filter(b => this.WORK_ANIM[b.type]);
+      if (working.length) {
+        const b = working[(Math.random() * working.length) | 0];
+        const wp = this.tileToWorld(b.x, b.y);
+        const spark = b.type === 'fabbro';
+        this.particles.push({
+          x: wp.x + (Math.random() - 0.5) * 18, y: wp.y - 4,
+          vx: (Math.random() - 0.5) * 16, vy: spark ? -22 : -8,
+          ttl: 0.5 + Math.random() * 0.3, max: 0.8,
+          kind: spark ? 'spark' : 'chip',
+        });
       }
     }
   },
@@ -172,7 +190,16 @@ const Renderer = {
           ctx.stroke();
         }
 
-        if (cell.b) this.drawBuilding(ctx, p.x, p.y, z, cell.b, night);
+        if (cell.b) {
+          this.drawBuilding(ctx, p.x, p.y, z, cell.b, night);
+          // lavoratore all'opera accanto all'edificio
+          const wa = this.WORK_ANIM[cell.b];
+          if (wa && s.pop >= 2) {
+            const wframe = ((this.time * 2.5 + x * 3 + y * 5) | 0) % 2;
+            this.sprite(ctx, Sprites.worker(wa.tool, wframe),
+              p.x + wa.ox * z, p.y + wa.oy * z, 1.5 * z);
+          }
+        }
 
         // anteprima costruzione
         if (this.ghost && this.ghost.x === x && this.ghost.y === y) {
@@ -192,6 +219,18 @@ const Renderer = {
     ctx.lineTo(cx, cy + H2);
     ctx.lineTo(cx - W2, cy);
     ctx.closePath();
+  },
+
+  // edifici con animazione di lavoro: attrezzo e posizione dell'operaio
+  WORK_ANIM: {
+    fattoria: { tool: 'hoe', ox: -14, oy: 4 },
+    taglialegna: { tool: 'axe', ox: 14, oy: 5 },
+    cava: { tool: 'pick', ox: 12, oy: 6 },
+    miniera: { tool: 'pick', ox: 14, oy: 4 },
+    scalpellino: { tool: 'pick', ox: -13, oy: 5 },
+    fabbro: { tool: 'hammer', ox: -14, oy: 4 },
+    segheria: { tool: 'saw', ox: 2, oy: 8 },
+    falegname: { tool: 'hammer', ox: 14, oy: 4 },
   },
 
   // disegna uno sprite pixel art ancorato al suo punto base
@@ -483,6 +522,7 @@ const Renderer = {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
       pt.ttl -= dt;
+      if (pt.kind === 'chip' || pt.kind === 'spark') pt.vy += 70 * dt;  // gravità
       pt.x += pt.vx * dt;
       pt.y += pt.vy * dt;
       if (pt.ttl <= 0) { this.particles.splice(i, 1); continue; }
@@ -494,6 +534,14 @@ const Renderer = {
         ctx.fillStyle = `rgba(226, 222, 210, ${a})`;
         ctx.fillRect(Math.round(p.x - r / 2), Math.round(p.y - r / 2), r, r);
         ctx.fillRect(Math.round(p.x - r / 4), Math.round(p.y - r), r / 2, r / 2);
+      } else if (pt.kind === 'chip') {
+        const u = Math.max(1, Math.round(2 * this.cam.zoom));
+        ctx.fillStyle = `rgba(138, 90, 50, ${Math.min(1, pt.ttl * 2)})`;
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), u, u);
+      } else if (pt.kind === 'spark') {
+        const u = Math.max(1, Math.round(1.5 * this.cam.zoom));
+        ctx.fillStyle = pt.ttl > 0.4 ? '#ffd66b' : `rgba(255, 155, 61, ${pt.ttl * 2})`;
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), u, u);
       } else if (pt.kind === 'bird') {
         if (p.x > this.w + 60) { this.particles.splice(i, 1); continue; }
         const flap = Math.sin(this.time * 10 + pt.y) > 0 ? 2 : 0;

@@ -21,7 +21,7 @@ const RES_EMOJI = {
   legna: '🪵', pietra: '🪨', cibo: '🍎', oro: '💰', fede: '✨',
   farina: '🌾', pane: '🍞', assi: '🪚', mobili: '🪑', armi: '🏹', blocchi: '🧱',
   acqua: '💧', miele: '🍯', idromele: '🍻', pelle: '🐮', scarpe: '👞',
-  ferro: '🔩', attrezzi: '🔨',
+  ferro: '🔩', attrezzi: '🔨', torta: '🍰',
 };
 
 // Esplorazione (nebbia di guerra)
@@ -110,6 +110,12 @@ const BUILDINGS = {
     name: 'Panificio', emoji: '🥖', era: 2, cost: { legna: 50, pietra: 30, oro: 10 },
     desc: 'Farina + acqua = pane, che nutre 3 volte più del grano.',
     conv: { in: { farina: 0.25, acqua: 0.15 }, out: { pane: 0.18 } }, workers: 2, happy: 2,
+    chain: 'contadino', needProf: ['contadino', 3],
+  },
+  pasticceria: {
+    name: 'Pasticceria', emoji: '🍰', era: 3, cost: { legna: 60, pietra: 30, oro: 25 },
+    desc: 'Farina + miele = torte: il cibo dei re (nutre ×5).',
+    conv: { in: { farina: 0.15, miele: 0.08 }, out: { torta: 0.08 } }, workers: 2, happy: 3,
     chain: 'contadino', needProf: ['contadino', 3],
   },
   // --- catena del boscaiolo ---
