@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Il tuo ordine</title>
+<style>
+/* =========================================================
+   PERSONALIZZA QUI I TESTI/COLORI DAL BLOCCO <script> IN FONDO.
+   Font: Nunito (rounded) via Google Fonts, con fallback di sistema.
+   ========================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800;1,900&display=swap');
+
+:root{
+  --bg-top:#3f6ea5;
+  --bg-bottom:#2f5788;
+  --card:#3a6197;
+  --card-head:#6f93c0;
+  --pill:#7ea3cd;
+  --green:#63d3a6;
+  --green-soft:#7fe0b8;
+  --pink:#ec3e79;
+  --yellow:#ece64a;
+  --text:#ffffff;
+  --text-dim:#e8eef7;
+  --ink:#33475b;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Nunito','Segoe UI',system-ui,-apple-system,sans-serif;
+  color:var(--text);
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 50% -10%, #4a79b0 0%, var(--bg-top) 40%, var(--bg-bottom) 100%);
+  background-attachment:fixed;
+  display:flex;
+  justify-content:center;
+  -webkit-font-smoothing:antialiased;
+}
+/* pattern "doodle" leggero in sovraimpressione */
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><g fill='none' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='2'><circle cx='30' cy='30' r='12'/><rect x='120' y='20' width='26' height='20' rx='4'/><path d='M60 120 q10 -18 20 0 t20 0'/><circle cx='160' cy='150' r='9'/><path d='M20 160 h24 M20 168 h16'/><rect x='150' y='90' width='18' height='24' rx='3'/><path d='M90 60 l10 10 l-10 10 l-10 -10 z'/></g></svg>");
+  background-size:180px 180px;
+  pointer-events:none;
+  z-index:0;
+}
+
+.app{
+  position:relative;
+  z-index:1;
+  width:100%;
+  max-width:460px;
+  padding:22px 20px 60px;
+}
+
+h1.thanks{
+  font-style:italic;
+  font-weight:900;
+  font-size:34px;
+  text-align:center;
+  margin:26px 0 22px;
+  text-shadow:0 2px 6px rgba(0,0,0,.18);
+}
+
+/* barra ordine */
+.order-bar{
+  background:rgba(255,255,255,.28);
+  border-radius:16px;
+  padding:16px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:800;
+  font-size:19px;
+  color:#20344a;
+  margin-bottom:18px;
+}
+.order-bar .when{font-weight:700;color:#20344a;opacity:.85;}
+
+/* messaggio di successo (compare dopo conferma) */
+.success-msg{
+  border:1.5px solid var(--green);
+  background:rgba(99,211,166,.08);
+  border-radius:16px;
+  padding:16px 20px;
+  font-size:20px;
+  line-height:1.35;
+  margin-bottom:18px;
+  display:none;
+}
+
+/* card prodotto */
+.card{
+  background:var(--card);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+  margin-bottom:18px;
+}
+.card-head{
+  background:var(--card-head);
+  color:#243a52;
+  font-style:italic;
+  font-weight:900;
+  font-size:24px;
+  padding:14px 22px;
+}
+.card-body{padding:8px 22px 26px;}
+.card-body .instruction{
+  font-size:26px;
+  text-align:center;
+  font-weight:600;
+  margin:18px 0 24px;
+  line-height:1.25;
+}
+
+/* ticket */
+.ticket{
+  position:relative;
+  display:flex;
+  border-radius:16px;
+  overflow:hidden;
+  margin:0 auto;
+  max-width:360px;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.22));
+  cursor:pointer;
+  user-select:none;
+}
+.ticket .stub{
+  width:64px;
+  background:var(--pink);
+  flex:0 0 64px;
+  transition:background .25s ease;
+}
+.ticket .body{
+  flex:1;
+  background:#fff;
+  padding:34px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+.ticket .inner{
+  border:2px solid var(--green-soft);
+  border-radius:12px;
+  width:100%;
+  padding:44px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.ticket .label{
+  color:var(--ink);
+  font-weight:800;
+  font-size:34px;
+  text-align:center;
+}
+/* notch decorativi */
+.ticket::before,.ticket::after{
+  content:"";position:absolute;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;border-radius:50%;
+  background:var(--card);
+}
+.ticket::before{left:51px;}
+.ticket::after{right:-13px;}
+
+/* stato riscattato */
+.ticket.redeemed .stub{background:var(--yellow);}
+.ticket.redeemed .inner{border-color:var(--pink);}
+.ticket.redeemed .cross{opacity:1;}
+.ticket .cross{
+  position:absolute;inset:12px 12px 12px 12px;
+  opacity:0;transition:opacity .3s ease;pointer-events:none;
+}
+.ticket .cross::before,.ticket .cross::after{
+  content:"";position:absolute;top:50%;left:0;right:0;height:6px;
+  background:var(--pink);border-radius:6px;transform-origin:center;
+}
+.ticket .cross::before{transform:rotate(28deg);}
+.ticket .cross::after{transform:rotate(-28deg);}
+
+.hint{
+  text-align:center;
+  font-size:14px;
+  color:var(--text-dim);
+  opacity:.7;
+  margin:14px 0 4px;
+}
+
+/* bottone pill */
+.btn-pill{
+  display:block;
+  margin:22px auto 0;
+  background:transparent;
+  color:var(--green-soft);
+  border:2px solid var(--green-soft);
+  border-radius:999px;
+  padding:14px 34px;
+  font-family:inherit;
+  font-weight:700;
+  font-size:20px;
+  cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.btn-pill:hover{background:var(--green-soft);color:#183a30;}
+
+/* sezione riscuoti */
+.redeem-sec .card-head{background:var(--card-head);}
+.redeem-sec .card-body{padding-top:16px;}
+.redeem-sec p{font-size:18px;line-height:1.4;color:var(--text-dim);}
+.qr{
+  width:180px;height:180px;margin:14px auto 4px;
+  background:#fff;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+}
+.qr svg{width:150px;height:150px;}
+
+/* ===== modale conferma Sì / No ===== */
+.overlay{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(18,32,52,.55);
+  backdrop-filter:blur(3px);
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+}
+.overlay.show{display:flex;animation:fade .18s ease;}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--card);
+  border-radius:22px;
+  width:100%;max-width:360px;
+  padding:30px 26px 24px;
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+  text-align:center;
+  animation:pop .2s ease;
+}
+@keyframes pop{from{transform:scale(.9);opacity:.4}to{transform:scale(1);opacity:1}}
+.modal .m-title{
+  font-style:italic;font-weight:900;font-size:26px;margin-bottom:8px;
+}
+.modal .m-text{font-size:19px;color:var(--text-dim);line-height:1.35;margin-bottom:26px;}
+.modal .m-actions{display:flex;gap:14px;}
+.modal .m-btn{
+  flex:1;border:none;border-radius:999px;padding:15px 0;
+  font-family:inherit;font-weight:800;font-size:20px;cursor:pointer;
+  transition:transform .08s,filter .15s;
+}
+.modal .m-btn:active{transform:scale(.96);}
+.m-btn.yes{background:var(--green);color:#0e3527;}
+.m-btn.yes:hover{filter:brightness(1.06);}
+.m-btn.no{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.4);}
+.m-btn.no:hover{background:rgba(255,255,255,.1);}
+
+@media(max-width:380px){
+  h1.thanks{font-size:29px;}
+  .ticket .label{font-size:28px;}
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1 class="thanks" id="thanksTitle">Grazie per il tuo ordine!</h1>
+
+    <div class="order-bar">
+      <span id="orderNo">#1841</span>
+      <span class="when" id="orderWhen">ADESSO</span>
+    </div>
+
+    <div class="success-msg" id="successMsg">Il tuo ordine è stato completato con successo.</div>
+
+    <div class="card">
+      <div class="card-head" id="customerName">Andrea</div>
+      <div class="card-body">
+        <div class="instruction">Vai al bancone e ritira i prodotti</div>
+
+        <div class="ticket" id="ticket" role="button" tabindex="0" aria-label="Riscatta biglietto">
+          <div class="stub"></div>
+          <div class="body">
+            <div class="inner">
+              <div class="label" id="ticketLabel">1x Bibite</div>
+            </div>
+            <div class="cross" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="hint" id="ticketHint">Tocca il biglietto per riscattarlo</div>
+
+        <button class="btn-pill" id="backBtn">Torna al menù</button>
+      </div>
+    </div>
+
+    <div class="card redeem-sec">
+      <div class="card-head">Riscuoti il tuo acquisto</div>
+      <div class="card-body">
+        <p>Mostra questo QR al personale per riscuotere il tuo acquisto.</p>
+        <div class="qr">
+          <svg viewBox="0 0 29 29" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+            <rect width="29" height="29" fill="#fff"/>
+            <g fill="#20344a">
+              <rect x="1" y="1" width="7" height="7"/><rect x="3" y="3" width="3" height="3" fill="#fff"/>
+              <rect x="21" y="1" width="7" height="7"/><rect x="23" y="3" width="3" height="3" fill="#fff"/>
+              <rect x="1" y="21" width="7" height="7"/><rect x="3" y="23" width="3" height="3" fill="#fff"/>
+              <rect x="10" y="1" width="1" height="1"/><rect x="12" y="1" width="1" height="1"/><rect x="14" y="2" width="1" height="1"/>
+              <rect x="16" y="1" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/>
+              <rect x="10" y="4" width="1" height="1"/><rect x="12" y="5" width="1" height="1"/><rect x="15" y="4" width="1" height="1"/>
+              <rect x="1" y="10" width="1" height="1"/><rect x="3" y="11" width="1" height="1"/><rect x="5" y="10" width="1" height="1"/>
+              <rect x="10" y="10" width="3" height="3"/><rect x="16" y="11" width="1" height="1"/><rect x="19" y="10" width="1" height="1"/>
+              <rect x="22" y="10" width="1" height="1"/><rect x="25" y="11" width="1" height="1"/><rect x="27" y="10" width="1" height="1"/>
+              <rect x="11" y="15" width="1" height="1"/><rect x="14" y="16" width="1" height="1"/><rect x="17" y="15" width="1" height="1"/>
+              <rect x="20" y="16" width="1" height="1"/><rect x="23" y="15" width="1" height="1"/><rect x="26" y="16" width="1" height="1"/>
+              <rect x="10" y="20" width="1" height="1"/><rect x="12" y="22" width="1" height="1"/><rect x="14" y="20" width="1" height="1"/>
+              <rect x="16" y="23" width="1" height="1"/><rect x="18" y="21" width="1" height="1"/><rect x="21" y="20" width="1" height="1"/>
+              <rect x="24" y="22" width="1" height="1"/><rect x="26" y="20" width="1" height="1"/>
+              <rect x="11" y="25" width="1" height="1"/><rect x="14" y="26" width="1" height="1"/><rect x="17" y="25" width="1" height="1"/>
+              <rect x="20" y="26" width="1" height="1"/><rect x="23" y="25" width="1" height="1"/><rect x="26" y="26" width="1" height="1"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- modale conferma -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal">
+      <div class="m-title" id="mTitle">Confermi il ritiro?</div>
+      <div class="m-text" id="mText">Segna <strong>1x Bibite</strong> come riscattato. L'operazione non è reversibile.</div>
+      <div class="m-actions">
+        <button class="m-btn no" id="btnNo">No</button>
+        <button class="m-btn yes" id="btnYes">Sì</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================================================
+   PERSONALIZZA IL TUO ORDINE QUI
+   ========================================================= */
+const CONFIG = {
+  thanks:      "Grazie per il tuo ordine!",
+  orderNo:     "#1841",
+  customer:    "Andrea",
+  item:        "1x Bibite",
+  successText: "Il tuo ordine è stato completato con successo.",
+  confirmTitle:"Confermi il ritiro?",
+};
+
+// applica config
+thanksTitle.textContent = CONFIG.thanks;
+orderNo.textContent     = CONFIG.orderNo;
+customerName.textContent= CONFIG.customer;
+ticketLabel.textContent = CONFIG.item;
+successMsg.textContent  = CONFIG.successText;
+mTitle.textContent      = CONFIG.confirmTitle;
+mText.innerHTML         = 'Segna <strong>'+CONFIG.item+'</strong> come riscattato. L\'operazione non è reversibile.';
+
+const ticket   = document.getElementById('ticket');
+const overlay  = document.getElementById('overlay');
+const btnYes   = document.getElementById('btnYes');
+const btnNo    = document.getElementById('btnNo');
+let redeemed   = false;
+
+function openModal(){
+  if(redeemed) return;
+  overlay.classList.add('show');
+  btnYes.focus();
+}
+function closeModal(){ overlay.classList.remove('show'); }
+
+function confirmRedeem(){
+  redeemed = true;
+  ticket.classList.add('redeemed');           // stub giallo + X rossa
+  document.getElementById('successMsg').style.display = 'block';
+  document.getElementById('orderWhen').textContent = 'ADESSO';
+  document.getElementById('ticketHint').textContent = 'Biglietto riscattato';
+  ticket.style.cursor = 'default';
+  closeModal();
+}
+
+// interazioni
+ticket.addEventListener('click', openModal);
+ticket.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();openModal();} });
+btnYes.addEventListener('click', confirmRedeem);
+btnNo.addEventListener('click', closeModal);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  // reset dimostrativo: torna allo stato iniziale
+  redeemed=false;
+  ticket.classList.remove('redeemed');
+  ticket.style.cursor='pointer';
+  document.getElementById('successMsg').style.display='none';
+  document.getElementById('ticketHint').textContent='Tocca il biglietto per riscattarlo';
+});
+</script>
+</body>
+</html>
